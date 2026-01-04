@@ -22,6 +22,7 @@ function pixelservice:load()
     cursorImg = love.graphics.newImage(cursorImgData)
 end
 
+tempC = {}
 function pixelservice:update(dt)
     local x, y = love.mouse.getPosition()
     updateCursor(x,y)
@@ -30,11 +31,13 @@ function pixelservice:update(dt)
     if Ui.objectHovering == nil then
         if love.mouse.isDown(1) or love.mouse.isDown(2)  then
             if pX >= 0 and pY >= 0 and pX < w and pY < h then
+                tempC = pixelservice.currentColour
+                if love.mouse.isDown(2) then tempC = {r=0,g=0,b=0,a=0} end
 
                 if lastPx then
-                    pixelservice:drawLine(lastPx.x, lastPx.y, pX, pY, pixelservice.currentColour.r, pixelservice.currentColour.g, pixelservice.currentColour.b, pixelservice.currentColour.a)
+                    pixelservice:drawLine(lastPx.x, lastPx.y, pX, pY, tempC.r,tempC.g, tempC.b, tempC.a)
                 else
-                    pixelservice:setPixelFast(imgData, pX, pY, pixelservice.currentColour.r, pixelservice.currentColour.g, pixelservice.currentColour.b, pixelservice.currentColour.a)
+                    pixelservice:setPixelFast(imgData, pX, pY, tempC.r, tempC.g, tempC.b, tempC.a)
                 end
 
                 lastPx = {x=pX, y=pY}
@@ -49,6 +52,8 @@ function pixelservice:update(dt)
         img = love.graphics.newImage(imgData)
         pixelservice.imageDirty = false
     end
+    
+    Ui.objectHovering = nil
 end
 
 function pixelservice:draw()

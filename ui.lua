@@ -8,6 +8,10 @@ ui.currentIco = nil
 ui.overUI = false
 
 ui.objectHovering = nil
+ui.colourDragging = false
+ui.hueDragging = false
+
+ui.currentHue = 0
 
 ui.dragXable = false
 ui.dragYable = true
@@ -15,7 +19,8 @@ ui.dragYable = true
 ui.slices = {}
 ui.buttons = {}
 
-ui.currentColourPicker = {x=0,y=0,layer=2}
+ui.currentColourPicker = {x=0,y=0,layer=2,type="colourPicker"}
+ui.currentHuePicker = {x=0,y=0,layer=2,type="huePicker"}
 
 ui.screenBounds = {
     left = {
@@ -60,6 +65,8 @@ function ui:load()
     ui.buttonClickSprite = love.graphics.newImage("darkclickbutton.png")
 
     ui.colourSelectHover = {sprite=love.graphics.newImage("colourselecthover.png"),x=0,y=0}
+    ui.hueSelectHover = {sprite=love.graphics.newImage("colourselecthover.png"),x=0,y=0}
+    
 
     s = register9Slice("dark9slice.png", "dark")
     s.sizeX = 70
@@ -145,11 +152,12 @@ function ui:draw()
     love.graphics.draw(ui.txt,5,-5,0,0.6,0.6)
     
     ui:drawColour()
+    ui:drawHue()
     ui:draw9slices()
     ui:drawButtons()
 
     love.graphics.draw(ui.currentIco, x, y, 0, 2, 2, ui.currentIco:getWidth()/2, ui.currentIco:getHeight() / 2)
-    ui.objectHovering = nil
+    
 end
 
 local function hsv(h, s, v)
@@ -174,33 +182,53 @@ local function hsv(h, s, v)
     return r+m, g+m, b+m
 end
 
+local function rgbToHsv(r, g, b)
+    local max = math.max(r, g, b)
+    local min = math.min(r, g, b)
+    local h, s, v
+    v = max
+
+    local d = max - min
+    if max == 0 then
+        s = 0
+        h = 0
+    else
+        s = d / max
+        if max == r then
+            h = (g - b) / d % 6
+        elseif max == g then
+            h = (b - r) / d + 2
+        elseif max == b then
+            h = (r - g) / d + 4
+        end
+        h = h / 6
+        if h < 0 then h = h + 1 end
+    end
+
+    return h, s, v
+end
+
+
 function ui:drawColour()
     local mX, mY = love.mouse.getPosition()
-    if ui.currentColourPicker.x ~= (ui.screenBounds.left.x/2) - 10 or ui.currentColourPicker.y ~= (love.graphics:getHeight() - (ui.screenBounds.left.y + ui.screenBounds.left.scale.y))/2 - 5 - 10 then
+    if ui.currentColourPicker.x ~= (ui.screenBounds.left.x/2) - 10 or ui.currentColourPicker.y ~= (love.graphics:getHeight() - (ui.screenBounds.left.y + ui.screenBounds.left.scale.y))/2 - 5 - 50 then
         if colorPickerImgData ~= nil then
             local xEqu = math.floor(((ui.currentColourPicker.x - colorPickerImg:getWidth() - 10) + mX) / 2) 
-            local yEqu = math.floor((mY - (ui.screenBounds.left.y + ui.screenBounds.left.scale.y)) / 2)
+            local yEqu = math.floor((mY - ((love.graphics:getHeight() - 50) - colorPickerImg:getHeight()*2)) / 2)
 
+            if ui.colourDragging and love.mouse.isDown(1) then
+                xEqu = clamp(0, xEqu, colorPickerImgData:getWidth()  - 1)
+                yEqu = clamp(0, yEqu, colorPickerImgData:getHeight() - 1)
 
-            if mY < love.graphics:getHeight() - 10 then print(yEqu) end
+                ui.colourDragging = true
+                local newR, newG, newB, newA = colorPickerImgData:getPixel(xEqu,yEqu)
+                PixelService.currentColour = {r=newR,g=newG,b=newB,1}
+                ui.colourSelectHover.x = xEqu
+                ui.colourSelectHover.y = yEqu
 
-            if xEqu >= 0 and xEqu <= colorPickerImgData:getWidth() -1 then
-                if yEqu >= 0 and yEqu <= colorPickerImgData:getHeight() -1 then
-                    if love.mouse.isDown(1) then
-                        local result = ui:queryHoverChange(ui.currentColourPicker)
-                        if result then
-                            local newR, newG, newB, newA = colorPickerImgData:getPixel(xEqu,yEqu)
-                            PixelService.currentColour = {r=newR,g=newG,b=newB,1}
-                            ui.colourSelectHover.x = xEqu
-                            ui.colourSelectHover.y = yEqu
+                ui.colourSelectHover.lastX = xEqu / colorPickerImgData:getWidth()
+                ui.colourSelectHover.lastY = yEqu / colorPickerImgData:getHeight()
 
-                            ui.colourSelectHover.lastX = xEqu / colorPickerImgData:getWidth()
-                            ui.colourSelectHover.lastY = yEqu / colorPickerImgData:getHeight()
-                        end
-
-
-                    end
-                end 
             end
 
             if ui.colourSelectHover.lastX ~= nil and not love.mouse.isDown(1) then
@@ -212,13 +240,13 @@ function ui:drawColour()
                 )
             end
         end
-        ui.currentColourPicker = {x=(ui.screenBounds.left.x/2) - 10,y=(love.graphics:getHeight() - (ui.screenBounds.left.y + ui.screenBounds.left.scale.y))/2 - 5,layer=1}
+        ui.currentColourPicker = {x=(ui.screenBounds.left.x/2) - 10,y=(love.graphics:getHeight() - 50)/2 - 5,layer=1,type="colourPicker"}
         if ui.currentColourPicker.x > 1 and ui.currentColourPicker.y > 1 then
-            local testImgData = love.image.newImageData((ui.screenBounds.left.x/2) - 10, (love.graphics:getHeight() - (ui.screenBounds.left.y + ui.screenBounds.left.scale.y))/2 - 5)
+            local testImgData = love.image.newImageData((ui.screenBounds.left.x/2) - 10,100)
             local imgX,imgY = testImgData:getDimensions()
             for x=0,imgX-1 do
                 for y=0,imgY-1 do
-                    local r,g,b = hsv(0.3,((1/imgX)*x),1-(1/imgY)*y)
+                    local r,g,b = hsv(ui.currentHue,((1/imgX)*x),1-(1/imgY)*y)
                     testImgData:setPixel(x,y,r,g,b,1)
                 end
             end
@@ -229,8 +257,86 @@ function ui:drawColour()
         end
         
     end
-    love.graphics.draw(colorPickerImg,10,ui.screenBounds.left.y + ui.screenBounds.left.scale.y ,0,2,2)
-    love.graphics.draw(ui.colourSelectHover.sprite,10 + (ui.colourSelectHover.x*2) ,ui.screenBounds.left.y + ui.screenBounds.left.scale.y + (ui.colourSelectHover.y*2) ,0,2,2, ui.colourSelectHover.sprite:getWidth()/2, ui.colourSelectHover.sprite:getHeight()/2)
+    love.graphics.draw(colorPickerImg,10,(love.graphics:getHeight() - 50)- colorPickerImg:getHeight()*2  ,0,2,2)
+    love.graphics.draw(ui.colourSelectHover.sprite,
+    10 + (ui.colourSelectHover.x * 2),
+    ((love.graphics:getHeight() - 50) - colorPickerImg:getHeight() * 2) + (ui.colourSelectHover.y * 2),
+    0, 2, 2,
+    ui.colourSelectHover.sprite:getWidth() / 2,
+    ui.colourSelectHover.sprite:getHeight() / 2
+)
+
+end
+
+
+function ui:drawHue()
+    local mX, mY = love.mouse.getPosition()
+    if ui.currentHuePicker.x ~= (ui.screenBounds.left.x/2) - 10 or ui.currentHuePicker.y ~= (love.graphics:getHeight() - (ui.screenBounds.left.y + ui.screenBounds.left.scale.y))/2 - 5 - 10 then
+        if huePickerImgData ~= nil then
+            local xEqu = math.floor(((ui.currentHuePicker.x - huePickerImg:getWidth() - 10) + mX) / 2) 
+            local yEqu = math.floor((mY - ((love.graphics:getHeight() - 10) - huePickerImg:getHeight()*2)) / 2)
+
+            if ui.hueDragging and love.mouse.isDown(1) then
+                xEqu = clamp(0, xEqu, huePickerImgData:getWidth()  - 1)
+                yEqu = clamp(0, yEqu, huePickerImgData:getHeight() - 1)
+
+                ui.hueDragging = true
+                local newR, newG, newB, newA = huePickerImgData:getPixel(xEqu,yEqu)
+
+                ui.currentHue = xEqu / huePickerImgData:getWidth()
+
+                local prevR = PixelService.currentColour.r
+                local prevG = PixelService.currentColour.g
+                local prevB = PixelService.currentColour.b
+                local h, s, v = rgbToHsv(prevR, prevG, prevB)
+
+                local r, g, b = hsv(ui.currentHue, s, v)
+
+                PixelService.currentColour = {r=r, g=g, b=b, 1}
+                ui.hueSelectHover.x = xEqu
+                ui.hueSelectHover.y = yEqu
+
+                ui.hueSelectHover.lastX = xEqu / huePickerImgData:getWidth()
+                ui.hueSelectHover.lastY = yEqu / huePickerImgData:getHeight()
+
+            end
+
+            if ui.hueSelectHover.lastX ~= nil and not love.mouse.isDown(1) then
+                ui.hueSelectHover.x = math.floor(
+                    ui.hueSelectHover.lastX * huePickerImgData:getWidth()
+                )
+                ui.hueSelectHover.y = math.floor(
+                    ui.hueSelectHover.lastY * huePickerImgData:getHeight()
+                )
+            end
+        end
+        ui.currentHuePicker = {x=(ui.screenBounds.left.x/2) - 10,y=(love.graphics:getHeight() - 10)/2 - 5,layer=1,type="huePicker"}
+        if ui.currentHuePicker.x > 1 and ui.currentHuePicker.y > 1 then
+            local testImgData = love.image.newImageData((ui.screenBounds.left.x/2) - 10,15)
+            local imgX,imgY = testImgData:getDimensions()
+            for x=0,imgX-1 do
+                for y=0,imgY-1 do
+                    local r,g,b = hsv(((1/imgX)*x),1,1)
+                    testImgData:setPixel(x,y,r,g,b,1)
+                end
+            end
+
+            huePickerImg = love.graphics.newImage(testImgData)
+            huePickerImgData = testImgData
+
+        end
+        
+    end
+    love.graphics.draw(huePickerImg,10,(love.graphics:getHeight() - 10)- huePickerImg:getHeight()*2  ,0,2,2)
+    
+    love.graphics.draw(ui.hueSelectHover.sprite,
+        10 + (ui.hueSelectHover.x * 2),
+        ((love.graphics:getHeight() - 10) - huePickerImg:getHeight() * 2) + (ui.hueSelectHover.y * 2),
+        0, 2, 2,
+        ui.hueSelectHover.sprite:getWidth() / 2,
+        ui.hueSelectHover.sprite:getHeight() / 2
+)
+
 end
 
 function ui:draw9slices()
@@ -275,6 +381,10 @@ end
 ui.camX = 0
 ui.camY = 0
 function ui:mousemoved( x, y, dx, dy, istouch )
+    if ui.colourDragging and ui.hueDragging and not ui.dragXable and not ui.dragYable then
+    return
+end
+
     if panning then
         ui.camX = ui.camX + dx
         ui.camY = ui.camY + dy
@@ -325,6 +435,15 @@ function ui:checkObjectCulling()
 end
 
 function ui:queryHoverChange(inputObj)
+    if ui.colourDragging then
+        ui.objectHovering = ui.currentColourPicker
+        return inputObj == ui.currentColourPicker
+    end
+
+    if ui.hueDragging then
+        ui.objectHovering = ui.currentHuePicker
+        return inputObj == ui.currentHuePicker
+    end
     if ui.objectHovering == nil then
         ui.objectHovering = inputObj
     end
@@ -333,7 +452,6 @@ function ui:queryHoverChange(inputObj)
         ui.objectHovering = inputObj
     end
 
-    print(ui.objectHovering, inputObj)
     return ui.objectHovering == inputObj
 end
 
@@ -345,7 +463,7 @@ function ui:checkMouseIco()
     end
 
     if x < ui.screenBounds.left.x + 10 and x > ui.screenBounds.left.x - 10 and y > ui.screenBounds.left.y and  y < ui.screenBounds.bottom.y + 10 and ui.objectHovering ~= nil then
-        if ui.objectHovering.type == "bg" then
+        if ui.objectHovering.type == "bg" and not ui.colourDragging and not ui.hueDragging  then
             ui.currentIco = ui.cursorDragXIco
             ui.dragXable = true
         end
@@ -354,7 +472,7 @@ function ui:checkMouseIco()
     end
 
     if y < ui.screenBounds.bottom.y + 10 and y > ui.screenBounds.bottom.y - 10 and x > ui.screenBounds.left.x - 10 and x < ui.screenBounds.right.x and ui.objectHovering ~= nil then
-        if ui.objectHovering.type == "bg" then
+        if ui.objectHovering.type == "bg" and not ui.colourDragging and not ui.hueDragging then
             ui.currentIco = ui.cursorDragYIco
             ui.dragYable = true
         end
@@ -401,6 +519,8 @@ function love.resize(w, h)
 end
 
 function ui:wheelmoved(x,y)
+    if ui.colourDragging then return end
+    if ui.hueDragging then return end
     if y == 0 then return end
 
     local mx, my = love.mouse.getPosition()
@@ -421,6 +541,30 @@ function ui:wheelmoved(x,y)
 end
 
 function ui:mousepressed(x, y, button, istouch)
+    if button == 1 then
+        local px = 10
+        local py = (love.graphics:getHeight() - 50) - colorPickerImg:getHeight() * 2
+        local pw = colorPickerImg:getWidth() * 2
+        local ph = colorPickerImg:getHeight() * 2
+
+        if x >= px and x <= px + pw and y >= py and y <= py + ph then
+            ui.colourDragging = true
+            return
+        end
+
+        px = 10
+        py = (love.graphics:getHeight() - 10) - huePickerImg:getHeight() * 2
+        pw = huePickerImg:getWidth() * 2
+        ph = huePickerImg:getHeight() * 2
+
+        if x >= px and x <= px + pw and y >= py and y <= py + ph then
+            print("hi")
+            ui.hueDragging = true
+            return
+        end
+
+    end
+
     if button == 3 then
         panning = true
    end
@@ -428,6 +572,10 @@ end
 
 function ui:mousereleased(x, y, button)
     if button == 1 or button == 2 then
+        if button == 1 then
+            ui.colourDragging = false
+            ui.hueDragging = false
+        end
         if #PixelService.localCurrentPx > 0 then
             table.insert(PixelService.localBigPx, PixelService.localCurrentPx)
         end
@@ -443,7 +591,7 @@ function ui:mousereleased(x, y, button)
 
     if ui.objectHovering ~= nil then
         if ui.objectHovering.type == "button" then
-            print("chat we have an eriosa")
+
         end
     end
 end
@@ -481,7 +629,12 @@ function updateCursor(mX,mY)
     if lastX ~= mX or lastY ~= mY and not(ui.overUI)then
         lastX, lastY = mX, mY
         if pX >= 0 and pY >= 0 and pX < w and pY < h then
-            PixelService:setPixelFast(cursorImgData, pX, pY, PixelService.currentColour.r, PixelService.currentColour.g, PixelService.currentColour.b, PixelService.currentColour.a, false)
+            if love.mouse.isDown(2) then
+                PixelService.tempC = {r=0,g=0,b=0,a=0}
+            else
+                PixelService.tempC = PixelService.currentColour
+            end
+            PixelService:setPixelFast(cursorImgData, pX, pY, PixelService.tempC.r, PixelService.tempC.g, PixelService.tempC.b, PixelService.tempC.a, false)
         end
         
         cursorImg = love.graphics.newImage(cursorImgData)
