@@ -30,15 +30,11 @@ function pixelservice:update(dt)
     if Ui.objectHovering == nil then
         if love.mouse.isDown(1) or love.mouse.isDown(2)  then
             if pX >= 0 and pY >= 0 and pX < w and pY < h then
-                local r,g,b,a = 0,0,1,1
-                if love.mouse.isDown(2) then r,g,b,a = 0,0,0,0 end
-
-                pixelservice.currentColour = {r=r,g=g,b=b,a=a}
 
                 if lastPx then
-                    pixelservice:drawLine(lastPx.x, lastPx.y, pX, pY, r, g, b, a)
+                    pixelservice:drawLine(lastPx.x, lastPx.y, pX, pY, pixelservice.currentColour.r, pixelservice.currentColour.g, pixelservice.currentColour.b, pixelservice.currentColour.a)
                 else
-                    pixelservice:setPixelFast(imgData, pX, pY, r, g, b, a)
+                    pixelservice:setPixelFast(imgData, pX, pY, pixelservice.currentColour.r, pixelservice.currentColour.g, pixelservice.currentColour.b, pixelservice.currentColour.a)
                 end
 
                 lastPx = {x=pX, y=pY}
@@ -140,7 +136,6 @@ function pixelservice:setPixelFast(imgToUse, x, y, r, g, b, a, countPx)
         pixelservice.localCurrentPxSet[key] = entry
         table.insert(pixelservice.localCurrentPx, entry)
     end
-
     imgToUse:setPixel(x, y, r, g, b, a)
     pixelservice.imageDirty = true
 end

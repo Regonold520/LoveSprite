@@ -15,7 +15,7 @@ ui.dragYable = true
 ui.slices = {}
 ui.buttons = {}
 
-ui.currentColourPicker = {x=0,y=0}
+ui.currentColourPicker = {x=0,y=0,layer=2}
 
 ui.screenBounds = {
     left = {
@@ -59,6 +59,8 @@ function ui:load()
     ui.buttonHoverSprite = love.graphics.newImage("darkhoverbutton.png")
     ui.buttonClickSprite = love.graphics.newImage("darkclickbutton.png")
 
+    ui.colourSelectHover = {sprite=love.graphics.newImage("colourselecthover.png"),x=0,y=0}
+
     s = register9Slice("dark9slice.png", "dark")
     s.sizeX = 70
     s.sizeY = 105
@@ -67,13 +69,13 @@ function ui:load()
     s2.sizeX = 70
     s2.sizeY = 7
 
-    s.pos = {x=300,y=100}
-    s2.pos = {x=300,y=100}
+    s.pos = {x=100,y=100}
+    s2.pos = {x=100,y=100}
 
     bu = registerButton("darkbutton.png", "dark")
     bu.sizeX = 32
 
-    bu.pos = {x=320,y=160}
+    bu.pos = {x=120,y=160}
 end
 
 function ui:update(dt)
@@ -89,6 +91,7 @@ function ui:update(dt)
     bu.sizeX = bu.text:getWidth() / 6
     ui.screenBounds.right.scale.y = ui.screenBounds.bottom.y - 97
     ui.screenBounds.left.scale.y = ui.screenBounds.bottom.y - 97
+
     ui:checkObjectCulling()
 end
 
@@ -140,14 +143,13 @@ function ui:draw()
 
 
     love.graphics.draw(ui.txt,5,-5,0,0.6,0.6)
-
+    
+    ui:drawColour()
     ui:draw9slices()
     ui:drawButtons()
 
-    ui:drawColour()
-
     love.graphics.draw(ui.currentIco, x, y, 0, 2, 2, ui.currentIco:getWidth()/2, ui.currentIco:getHeight() / 2)
-    
+    ui.objectHovering = nil
 end
 
 local function hsv(h, s, v)
@@ -173,9 +175,44 @@ local function hsv(h, s, v)
 end
 
 function ui:drawColour()
+    local mX, mY = love.mouse.getPosition()
     if ui.currentColourPicker.x ~= (ui.screenBounds.left.x/2) - 10 or ui.currentColourPicker.y ~= (love.graphics:getHeight() - (ui.screenBounds.left.y + ui.screenBounds.left.scale.y))/2 - 5 - 10 then
-        print("oh la la")
-        ui.currentColourPicker = {x=(ui.screenBounds.left.x/2) - 10,y=(love.graphics:getHeight() - (ui.screenBounds.left.y + ui.screenBounds.left.scale.y))/2 - 5}
+        if colorPickerImgData ~= nil then
+            local xEqu = math.floor(((ui.currentColourPicker.x - colorPickerImg:getWidth() - 10) + mX) / 2) 
+            local yEqu = math.floor((mY - (ui.screenBounds.left.y + ui.screenBounds.left.scale.y)) / 2)
+
+
+            if mY < love.graphics:getHeight() - 10 then print(yEqu) end
+
+            if xEqu >= 0 and xEqu <= colorPickerImgData:getWidth() -1 then
+                if yEqu >= 0 and yEqu <= colorPickerImgData:getHeight() -1 then
+                    if love.mouse.isDown(1) then
+                        local result = ui:queryHoverChange(ui.currentColourPicker)
+                        if result then
+                            local newR, newG, newB, newA = colorPickerImgData:getPixel(xEqu,yEqu)
+                            PixelService.currentColour = {r=newR,g=newG,b=newB,1}
+                            ui.colourSelectHover.x = xEqu
+                            ui.colourSelectHover.y = yEqu
+
+                            ui.colourSelectHover.lastX = xEqu / colorPickerImgData:getWidth()
+                            ui.colourSelectHover.lastY = yEqu / colorPickerImgData:getHeight()
+                        end
+
+
+                    end
+                end 
+            end
+
+            if ui.colourSelectHover.lastX ~= nil and not love.mouse.isDown(1) then
+                ui.colourSelectHover.x = math.floor(
+                    ui.colourSelectHover.lastX * colorPickerImgData:getWidth()
+                )
+                ui.colourSelectHover.y = math.floor(
+                    ui.colourSelectHover.lastY * colorPickerImgData:getHeight()
+                )
+            end
+        end
+        ui.currentColourPicker = {x=(ui.screenBounds.left.x/2) - 10,y=(love.graphics:getHeight() - (ui.screenBounds.left.y + ui.screenBounds.left.scale.y))/2 - 5,layer=1}
         if ui.currentColourPicker.x > 1 and ui.currentColourPicker.y > 1 then
             local testImgData = love.image.newImageData((ui.screenBounds.left.x/2) - 10, (love.graphics:getHeight() - (ui.screenBounds.left.y + ui.screenBounds.left.scale.y))/2 - 5)
             local imgX,imgY = testImgData:getDimensions()
@@ -187,11 +224,13 @@ function ui:drawColour()
             end
 
             colorPickerImg = love.graphics.newImage(testImgData)
+            colorPickerImgData = testImgData
 
         end
         
     end
     love.graphics.draw(colorPickerImg,10,ui.screenBounds.left.y + ui.screenBounds.left.scale.y ,0,2,2)
+    love.graphics.draw(ui.colourSelectHover.sprite,10 + (ui.colourSelectHover.x*2) ,ui.screenBounds.left.y + ui.screenBounds.left.scale.y + (ui.colourSelectHover.y*2) ,0,2,2, ui.colourSelectHover.sprite:getWidth()/2, ui.colourSelectHover.sprite:getHeight()/2)
 end
 
 function ui:draw9slices()
@@ -271,6 +310,7 @@ function ui:checkObjectCulling()
 
                     if love.mouse.isDown(1) then
                         i.sprite = ui.buttonClickSprite
+                        
                     end
                 else
                     i.sprite = ui.buttonSprite
@@ -289,10 +329,11 @@ function ui:queryHoverChange(inputObj)
         ui.objectHovering = inputObj
     end
 
-    if inputObj.layer >= ui.objectHovering.layer then
+    if inputObj.layer > ui.objectHovering.layer then
         ui.objectHovering = inputObj
     end
 
+    print(ui.objectHovering, inputObj)
     return ui.objectHovering == inputObj
 end
 
@@ -454,7 +495,7 @@ function register9Slice(spritePath, id)
         sizeX = 0,
         sizeY = 0,
         pos = {x=0,y=0},
-        layer = 1,
+        layer = 2,
         type = "9slice",
         parts = {    
             tl = {q=love.graphics.newQuad(0,0,3,3,sprite:getWidth(),sprite:getHeight()),offset={x=0,y=0},move={x=0,y=0}},
@@ -477,13 +518,13 @@ end
 
 function registerButton(spritePath, id)
     local sprite = love.graphics.newImage(spritePath)
-    local text = love.graphics.newText(ui.font, "Erio Cheller")
+    local text = love.graphics.newText(ui.font, "Cool Button")
 
     local slice = {    
         text = text,
         sizeX = 0,
         sizeY = 0,
-        layer = 2,
+        layer = 3,
         type = "button",
         pos = {x=0,y=0},
         parts = {    
