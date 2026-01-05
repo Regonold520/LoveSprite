@@ -6,7 +6,7 @@ PixelService = require("pixelservice")
 function love.load()
     love.mouse.setVisible( false )
     love.graphics.setDefaultFilter("nearest", "nearest")
-    love.graphics.setBackgroundColor(love.math.colorFromBytes(32, 33, 37))
+    love.graphics.setBackgroundColor(0.078,0.070,0.090)
 
     PixelService:load()
     Ui:load()

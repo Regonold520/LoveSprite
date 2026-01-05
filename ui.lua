@@ -18,6 +18,7 @@ ui.dragYable = true
 
 ui.slices = {}
 ui.buttons = {}
+ui.toolButtons = {}
 
 ui.currentColourPicker = {x=0,y=0,layer=2,type="colourPicker"}
 ui.currentHuePicker = {x=0,y=0,layer=2,type="huePicker"}
@@ -59,30 +60,38 @@ function ui:load()
     ui.cursorDragXIco = love.graphics.newImage("dragXCursor.png")
     ui.cursorDragYIco = love.graphics.newImage("dragYCursor.png")
     ui.cursorDragXYIco = love.graphics.newImage("dragXYCursor.png")
+    ui.cursorEyedropIco = love.graphics.newImage("eyedropCursor.png")
 
     ui.buttonSprite = love.graphics.newImage("darkbutton.png")
     ui.buttonHoverSprite = love.graphics.newImage("darkhoverbutton.png")
     ui.buttonClickSprite = love.graphics.newImage("darkclickbutton.png")
 
     ui.colourSelectHover = {sprite=love.graphics.newImage("colourselecthover.png"),x=0,y=0}
+    ui.colourSelectHoverLight = love.graphics.newImage("colourselecthoverlight.png")
+
     ui.hueSelectHover = {sprite=love.graphics.newImage("colourselecthover.png"),x=0,y=0}
     
 
-    s = register9Slice("dark9slice.png", "dark")
-    s.sizeX = 70
-    s.sizeY = 105
+    --s = register9Slice("dark9slice.png", "dark")
+    --s.sizeX = 70
+    --s.sizeY = 105
 
-    s2 = register9Slice("light9slice.png", "light")
-    s2.sizeX = 70
-    s2.sizeY = 7
+    --s2 = register9Slice("light9slice.png", "light")
+    --s2.sizeX = 70
+    --s2.sizeY = 7
 
-    s.pos = {x=100,y=100}
-    s2.pos = {x=100,y=100}
+    --s.pos = {x=100,y=100}
+    --s2.pos = {x=100,y=100}
 
-    bu = registerButton("darkbutton.png", "dark")
-    bu.sizeX = 32
+    --bu = registerButton("darkbutton.png", "dark")
+    --bu.sizeX = 32
 
-    bu.pos = {x=120,y=160}
+    --bu.pos = {x=120,y=160}
+
+    registerToolButton("brush")
+    registerToolButton("eraser")
+    registerToolButton("eyedropper")
+    registerToolButton("paintbucket")
 end
 
 function ui:update(dt)
@@ -95,11 +104,14 @@ function ui:update(dt)
         ui.objectHovering = nil
     end
 
-    bu.sizeX = bu.text:getWidth() / 6
+    --bu.sizeX = bu.text:getWidth() / 6
     ui.screenBounds.right.scale.y = ui.screenBounds.bottom.y - 97
     ui.screenBounds.left.scale.y = ui.screenBounds.bottom.y - 97
 
     ui:checkObjectCulling()
+    if ui.objectHovering ~= nil then
+        --print(ui.objectHovering.type)
+    end
 end
 
 function ui:draw()
@@ -110,10 +122,10 @@ function ui:draw()
     ui:checkMouseIco()
     
 
-    love.graphics.setColor(0.17254901960784313, 0.17254901960784313, 0.18823529411764706)
+    love.graphics.setColor(0.211, 0.196, 0.235)
     love.graphics.rectangle("fill", 0, 0, love.graphics.getWidth(), 50)
 
-    love.graphics.setColor(0.2, 0.2, 0.2)
+    love.graphics.setColor(0.145, 0.137, 0.156)
     love.graphics.rectangle("fill", 0, 50, love.graphics.getWidth(), 50)
 
 
@@ -126,7 +138,7 @@ function ui:draw()
     love.graphics.rectangle("fill", 0, 50, clamp(0, ui.screenBounds.left.x, ui.screenBounds.right.x) , love.graphics.getHeight())
 
     love.graphics.rectangle("fill", 0, clamp(ui.screenBounds.left.y, ui.screenBounds.bottom.y, 9999), love.graphics.getWidth() , love.graphics:getHeight() - ui.screenBounds.bottom.y)
-    love.graphics.setColor(0.34, 0.34, 0.34)
+    love.graphics.setColor(0.247, 0.235, 0.258)
 
     love.graphics.rectangle("fill", 0, 50, love.graphics.getWidth(), 3)
 
@@ -153,14 +165,51 @@ function ui:draw()
     
     ui:drawColour()
     ui:drawHue()
+    ui:drawToolButtons()
     ui:draw9slices()
     ui:drawButtons()
+
+    
+    if PixelService.tooLight and not(ui.overUI) then love.graphics.setColor(0, 0, 0) end
 
     love.graphics.draw(ui.currentIco, x, y, 0, 2, 2, ui.currentIco:getWidth()/2, ui.currentIco:getHeight() / 2)
     
 end
 
-local function hsv(h, s, v)
+function ui:drawToolButtons()
+    local count = 0
+    local mX, mY = love.mouse.getPosition()
+    for _,i in pairs(ui.toolButtons) do
+        local chosenSprite = i.sprite
+
+        if i.toolType == PixelService.currentTool then
+            chosenSprite = i.selectedSprite
+        end
+
+        if mX > ui.screenBounds.right.x + 5 and mX < ui.screenBounds.right.x + 5 + 32 then
+            if mY > (ui.screenBounds.right.y + ((count * 17)*2)) and mY < (ui.screenBounds.right.y + ((count * 17)*2) + 32) then
+                local result = ui:queryHoverChange(i)
+                
+
+                if result then
+                    chosenSprite = i.selectedSprite
+                    if love.mouse.isDown(1) then
+                        PixelService.currentTool = i.toolType
+                    end
+                end
+            end
+        end
+
+
+        love.graphics.draw(chosenSprite, ui.screenBounds.right.x + 5, ui.screenBounds.right.y + ((count * 17)*2), 0, 2, 2)
+    
+        
+
+        count = count + 1
+    end
+end
+
+function hsv(h, s, v)
     if s <= 0 then return v,v,v end
     h = h*6
     local c = v*s
@@ -182,7 +231,7 @@ local function hsv(h, s, v)
     return r+m, g+m, b+m
 end
 
-local function rgbToHsv(r, g, b)
+function rgbToHsv(r, g, b)
     local max = math.max(r, g, b)
     local min = math.min(r, g, b)
     local h, s, v
@@ -247,6 +296,8 @@ function ui:drawColour()
             for x=0,imgX-1 do
                 for y=0,imgY-1 do
                     local r,g,b = hsv(ui.currentHue,((1/imgX)*x),1-(1/imgY)*y)
+
+
                     testImgData:setPixel(x,y,r,g,b,1)
                 end
             end
@@ -258,7 +309,12 @@ function ui:drawColour()
         
     end
     love.graphics.draw(colorPickerImg,10,(love.graphics:getHeight() - 50)- colorPickerImg:getHeight()*2  ,0,2,2)
-    love.graphics.draw(ui.colourSelectHover.sprite,
+
+    local newH,newS,newV = rgbToHsv(PixelService.currentColour.r,PixelService.currentColour.g,PixelService.currentColour.g)
+    local pickerImg = ui.colourSelectHover.sprite
+    if newV < 0.5 then pickerImg = ui.colourSelectHoverLight end
+
+    love.graphics.draw(pickerImg,
     10 + (ui.colourSelectHover.x * 2),
     ((love.graphics:getHeight() - 50) - colorPickerImg:getHeight() * 2) + (ui.colourSelectHover.y * 2),
     0, 2, 2,
@@ -277,8 +333,10 @@ function ui:drawHue()
             local yEqu = math.floor((mY - ((love.graphics:getHeight() - 10) - huePickerImg:getHeight()*2)) / 2)
 
             if ui.hueDragging and love.mouse.isDown(1) then
+                ui:queryHoverChange(ui.currentHuePicker)
                 xEqu = clamp(0, xEqu, huePickerImgData:getWidth()  - 1)
                 yEqu = clamp(0, yEqu, huePickerImgData:getHeight() - 1)
+
 
                 ui.hueDragging = true
                 local newR, newG, newB, newA = huePickerImgData:getPixel(xEqu,yEqu)
@@ -331,7 +389,7 @@ function ui:drawHue()
     
     love.graphics.draw(ui.hueSelectHover.sprite,
         10 + (ui.hueSelectHover.x * 2),
-        ((love.graphics:getHeight() - 10) - huePickerImg:getHeight() * 2) + (ui.hueSelectHover.y * 2),
+        ((love.graphics:getHeight() - 10) - huePickerImg:getHeight()) ,
         0, 2, 2,
         ui.hueSelectHover.sprite:getWidth() / 2,
         ui.hueSelectHover.sprite:getHeight() / 2
@@ -432,6 +490,14 @@ function ui:checkObjectCulling()
             i.sprite = ui.buttonSprite
         end
     end
+
+    if ui.hueDragging then
+        ui:queryHoverChange(ui.currentHuePicker)
+    end
+
+    if ui.colourDragging then
+        ui:queryHoverChange(ui.currentColourPicker)
+    end
 end
 
 function ui:queryHoverChange(inputObj)
@@ -460,6 +526,13 @@ function ui:checkMouseIco()
 
     if ui.objectHovering ~= nil then
         ui.currentIco = ui.cursorMouseIco
+    else
+        if PixelService.currentTool == "brush" or PixelService.currentTool == "paintbucket" then
+            ui.currentIco = ui.cursorIco
+        elseif PixelService.currentTool == "eyedropper" then
+            ui.currentIco = ui.cursorEyedropIco
+
+        end
     end
 
     if x < ui.screenBounds.left.x + 10 and x > ui.screenBounds.left.x - 10 and y > ui.screenBounds.left.y and  y < ui.screenBounds.bottom.y + 10 and ui.objectHovering ~= nil then
@@ -482,6 +555,24 @@ function ui:checkMouseIco()
 
     if ui.dragXable and ui.dragYable  then
         ui.currentIco = ui.cursorDragXYIco
+    end
+
+    local mX, mY = love.mouse.getPosition()
+
+    if huePickerImgData ~= nil
+        and mX >= 10
+        and mX <= 10 + huePickerImg:getWidth() * 2
+        and mY >= (love.graphics:getHeight() - 10) - huePickerImg:getHeight() * 2
+        and mY <= (love.graphics:getHeight() - 10) or ui.hueDragging  then
+            ui.currentIco = ui.cursorEyedropIco
+    end
+
+    if colorPickerImgData ~= nil
+        and mX >= 10
+        and mX <= 10 + colorPickerImg:getWidth() * 2
+        and mY >= (love.graphics:getHeight() - 50) - colorPickerImg:getHeight() * 2
+        and mY <= (love.graphics:getHeight() - 50) or ui.colourDragging  then
+            ui.currentIco = ui.cursorEyedropIco
     end
 
     ui.overUI = not(x > ui.screenBounds.left.x and x < ui.screenBounds.right.x) or not(y > ui.screenBounds.left.y and y < ui.screenBounds.left.y + ui.screenBounds.left.scale.y)
@@ -558,7 +649,6 @@ function ui:mousepressed(x, y, button, istouch)
         ph = huePickerImg:getHeight() * 2
 
         if x >= px and x <= px + pw and y >= py and y <= py + ph then
-            print("hi")
             ui.hueDragging = true
             return
         end
@@ -598,9 +688,32 @@ end
 
 
 control = false
+alt = false
 function ui:keypressed( key, scancode, isrepeat )
    if scancode == "lctrl" then
       control = true
+   end
+
+   if scancode == "lalt" then
+        alt = true
+        PixelService.bankedTool = PixelService.currentTool
+        PixelService.currentTool = "eyedropper"
+   end
+
+   if scancode == "b" then
+        PixelService.currentTool = "brush"
+   end
+
+   if scancode == "e" then
+        PixelService.currentTool = "eraser"
+   end
+
+   if scancode == "i" then
+        PixelService.currentTool = "eyedropper"
+   end
+
+   if scancode == "g" then
+        PixelService.currentTool = "paintbucket"
    end
 
     if control and scancode == "z" then
@@ -617,8 +730,47 @@ function ui:keyreleased( key, scancode, isrepeat )
    if scancode == "lctrl" then
       control = false
    end
+   if scancode == "lalt" then
+      alt = false
+      PixelService.currentTool = PixelService.bankedTool
+   end
+
 end
 
+function ui:changeColour(r, g, b, a)
+    a=a or 1
+
+    local hue, sat, val = rgbToHsv(r, g, b)
+
+    if hue ~= hue then hue = 0 end
+
+
+    PixelService.currentColour = {r=r,g=g,b=b,a=a}
+
+    ui.currentHue = hue
+
+    if huePickerImgData then
+        local w = huePickerImgData:getWidth()
+        local x = math.floor(hue*val)
+
+        ui.hueSelectHover.x = clamp(0, x, w-1)
+        ui.hueSelectHover.y = 0
+        ui.hueSelectHover.lastX = ui.hueSelectHover.x / w
+        ui.hueSelectHover.lastY = 0
+    end
+
+    if colorPickerImgData then
+        local w, hgt = colorPickerImgData:getDimensions()
+
+        local x = math.floor(sat*w)
+        local y = math.floor((1-val) * hgt)
+        ui.colourSelectHover.x = clamp(0,x,w-1)
+        ui.colourSelectHover.y = clamp(0, y, hgt-1)
+
+        ui.colourSelectHover.lastX = ui.colourSelectHover.x / w
+        ui.colourSelectHover.lastY = ui.colourSelectHover.y / hgt
+    end
+end
 
 local lastX, lastY = 0,0
 function updateCursor(mX,mY)
@@ -634,7 +786,14 @@ function updateCursor(mX,mY)
             else
                 PixelService.tempC = PixelService.currentColour
             end
-            PixelService:setPixelFast(cursorImgData, pX, pY, PixelService.tempC.r, PixelService.tempC.g, PixelService.tempC.b, PixelService.tempC.a, false)
+            if PixelService.currentTool == "brush" or PixelService.currentTool == "paintbucket" then
+                local newH,newS,newV = rgbToHsv(PixelService.tempC.r,PixelService.tempC.g,PixelService.tempC.b)
+                print(newV,newS)
+
+                PixelService.tooLight = newV > 0.5 and newS < 0.5
+
+                PixelService:setPixelFast(cursorImgData, pX, pY, PixelService.tempC.r, PixelService.tempC.g, PixelService.tempC.b, PixelService.tempC.a, false)
+            end
         end
         
         cursorImg = love.graphics.newImage(cursorImgData)
@@ -665,7 +824,7 @@ function register9Slice(spritePath, id)
         sprite = sprite
     }
 
-    ui.slices[id] = slice
+    table.insert(ui.slices, slice)
     return slice
 end
 
@@ -688,8 +847,22 @@ function registerButton(spritePath, id)
         sprite = sprite
     }
 
-    ui.buttons[id] = slice
+    table.insert(ui.buttons, slice)
     return slice
+end
+
+function registerToolButton(toolType)
+
+    local tool = {    
+        layer = 1,
+        type = "toolButton",
+        toolType = toolType,
+        sprite = love.graphics.newImage(toolType.. "button.png"),
+        selectedSprite = love.graphics.newImage(toolType.. "buttonhover.png")
+    }
+
+    table.insert(ui.toolButtons, tool)
+    return tool
 end
 
 return ui

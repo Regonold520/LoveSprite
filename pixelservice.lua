@@ -9,6 +9,11 @@ pixelservice.currentColour = {r=0,g=0,b=1,a=1}
 pixelservice.localCurrentPx = {}
 pixelservice.localBigPx = {}
 
+pixelservice.currentTool = "brush"
+pixelservice.bankedTool = ""
+
+pixelservice.tooLight = false
+
 
 function pixelservice:load()
 
@@ -26,26 +31,12 @@ tempC = {}
 function pixelservice:update(dt)
     local x, y = love.mouse.getPosition()
     updateCursor(x,y)
-    local pX, pY = pixelservice:posToPixel(img,love.graphics.getWidth() / 2, love.graphics.getHeight() / 2,x, y)
-    local w, h = imgData:getDimensions()
-    if Ui.objectHovering == nil then
-        if love.mouse.isDown(1) or love.mouse.isDown(2)  then
-            if pX >= 0 and pY >= 0 and pX < w and pY < h then
-                tempC = pixelservice.currentColour
-                if love.mouse.isDown(2) then tempC = {r=0,g=0,b=0,a=0} end
-
-                if lastPx then
-                    pixelservice:drawLine(lastPx.x, lastPx.y, pX, pY, tempC.r,tempC.g, tempC.b, tempC.a)
-                else
-                    pixelservice:setPixelFast(imgData, pX, pY, tempC.r, tempC.g, tempC.b, tempC.a)
-                end
-
-                lastPx = {x=pX, y=pY}
-                
-            end
-        else
-            lastPx = nil
-        end
+    
+    if Ui.objectHovering == nil and not(Ui.colourDragging) and not(Ui.hueDragging) then
+        if pixelservice.currentTool == "brush" then pixelservice.brushTool() 
+        elseif pixelservice.currentTool == "eyedropper" then pixelservice.eyedropperTool()
+        elseif pixelservice.currentTool == "eraser" then pixelservice.eraserTool()
+        elseif pixelservice.currentTool == "paintbucket" then pixelservice.paintBucketTool() end
     end
 
     if pixelservice.imageDirty then
@@ -54,6 +45,140 @@ function pixelservice:update(dt)
     end
     
     Ui.objectHovering = nil
+end
+
+function pixelservice:brushTool()
+    local x, y = love.mouse.getPosition()
+    local pX, pY = pixelservice:posToPixel(img,love.graphics.getWidth() / 2, love.graphics.getHeight() / 2,x, y)
+    local w, h = imgData:getDimensions()
+    if love.mouse.isDown(1) or love.mouse.isDown(2)  then
+        if pX >= 0 and pY >= 0 and pX < w and pY < h then
+            tempC = pixelservice.currentColour
+            if love.mouse.isDown(2) then tempC = {r=0,g=0,b=0,a=0} end
+            
+            if lastPx then
+                pixelservice:drawLine(lastPx.x, lastPx.y, pX, pY, tempC.r,tempC.g, tempC.b, tempC.a)
+            else
+                pixelservice:setPixelFast(imgData, pX, pY, tempC.r, tempC.g, tempC.b, tempC.a)
+            end
+
+            lastPx = {x=pX, y=pY}
+            
+        end
+    else
+        lastPx = nil
+    end
+end
+
+function pixelservice:eraserTool()
+    local x, y = love.mouse.getPosition()
+    local pX, pY = pixelservice:posToPixel(img,love.graphics.getWidth() / 2, love.graphics.getHeight() / 2,x, y)
+    local w, h = imgData:getDimensions()
+    if love.mouse.isDown(1) or love.mouse.isDown(2)  then
+        if pX >= 0 and pY >= 0 and pX < w and pY < h then
+            tempC = {r=0,g=0,b=0,a=0}
+
+            
+
+            if lastPx then
+                pixelservice:drawLine(lastPx.x, lastPx.y, pX, pY, tempC.r,tempC.g, tempC.b, tempC.a)
+            else
+                pixelservice:setPixelFast(imgData, pX, pY, tempC.r, tempC.g, tempC.b, tempC.a)
+            end
+
+            lastPx = {x=pX, y=pY}
+            
+        end
+    else
+        lastPx = nil
+    end
+end
+
+function pixelservice:paintBucketTool()
+    local x, y = love.mouse.getPosition()
+    local pX, pY = pixelservice:posToPixel(img,love.graphics.getWidth() / 2, love.graphics.getHeight() / 2,x, y)
+    local w, h = imgData:getDimensions()
+    if love.mouse.isDown(1) then
+        if pX >= 0 and pY >= 0 and pX < w and pY < h then
+            local fr,fg,fb,fa = imgData:getPixel(pX,pY)
+
+            local firstColour = {r=fr,g=fg,b=fb,a=fa}
+            local pRemaining = {}
+            local pAdded = {}
+            table.insert(pRemaining, {
+                x=pX,
+                y=pY,
+            })
+
+            while #pRemaining > 0 do
+                print(#pRemaining)
+                local count = 1
+                for _,i in pairs(pRemaining) do
+                    pixelservice:setPixelFast(imgData, i.x, i.y, pixelservice.currentColour.r, pixelservice.currentColour.g, pixelservice.currentColour.b, pixelservice.currentColour.a)
+                    if i.x + 1 >= 0 and i.y >= 0 and i.x + 1 < w and i.y < h then
+                        local nr,ng,nb,na = imgData:getPixel(i.x+1,i.y)
+                        local nColour = {r=nr,g=ng,b=nb,a=na}
+                        if nColour.r == firstColour.r and nColour.g == firstColour.g and nColour.b == firstColour.b and nColour.a == firstColour.a and pAdded[i.x..","..i.y] == nil then
+                            table.insert(pRemaining, {x=i.x + 1, y = i.y})
+                        end
+                    end
+
+                    if i.x - 1 >= 0 and i.y >= 0 and i.x - 1 < w and i.y < h then
+                        local nr,ng,nb,na = imgData:getPixel(i.x-1,i.y)
+                        local nColour = {r=nr,g=ng,b=nb,a=na}
+                        if nColour.r == firstColour.r and nColour.g == firstColour.g and nColour.b == firstColour.b and nColour.a == firstColour.a and pAdded[i.x..","..i.y] == nil then
+                            table.insert(pRemaining, {x=i.x - 1, y = i.y})
+                        end
+                    end
+
+                    if i.x  >= 0 and i.y+1 >= 0 and i.x < w and i.y+1 < h then
+                        local nr,ng,nb,na = imgData:getPixel(i.x,i.y+1)
+                        local nColour = {r=nr,g=ng,b=nb,a=na}
+                        if nColour.r == firstColour.r and nColour.g == firstColour.g and nColour.b == firstColour.b and nColour.a == firstColour.a and pAdded[i.x..","..i.y] == nil then
+                            table.insert(pRemaining, {x=i.x, y = i.y+1})
+                        end
+                    end
+
+                    if i.x  >= 0 and i.y-1 >= 0 and i.x < w and i.y-1 < h then
+                        local nr,ng,nb,na = imgData:getPixel(i.x,i.y-1)
+                        local nColour = {r=nr,g=ng,b=nb,a=na}
+                        if nColour.r == firstColour.r and nColour.g == firstColour.g and nColour.b == firstColour.b and nColour.a == firstColour.a and pAdded[i.x..","..i.y] == nil then
+                            table.insert(pRemaining, {x=i.x, y = i.y-1})
+                            
+                        end
+                    end
+
+                    
+                    table.remove(pRemaining, count)
+                    pAdded[i.x..","..i.y] = i
+                    count = count + 1
+                end
+            end
+        end
+    end
+end
+
+function tableContains(table, value)
+    local i = 0 local contains = false
+
+    repeat if (table[i] == value) then contains = true end i = i + 1 until(i == #table)
+
+    return contains 
+end 
+
+function pixelservice:eyedropperTool()
+    local x, y = love.mouse.getPosition()
+    local pX, pY = pixelservice:posToPixel(img,love.graphics.getWidth() / 2, love.graphics.getHeight() / 2,x, y)
+    local w, h = imgData:getDimensions()
+    if love.mouse.isDown(1) then
+        if pX >= 0 and pY >= 0 and pX < w and pY < h then
+            local r,g,b,a = imgData:getPixel(pX,pY)
+            Ui:changeColour(r,g,b,a)
+
+            lastPx = {x=pX, y=pY}
+            
+        end
+    end
 end
 
 function pixelservice:draw()
