@@ -2,6 +2,7 @@ scalar = 10
 
 Ui = require("ui")
 PixelService = require("pixelservice")
+Gui = require("gui")
 
 function love.load()
     love.mouse.setVisible( false )
@@ -10,12 +11,17 @@ function love.load()
 
     PixelService:load()
     Ui:load()
+    Gui:load()
 end
 
 
 function love.update(dt)
     PixelService:update(dt)
     Ui:update(dt)
+    Gui:update(dt)
+
+    mousejustpressed = false
+    justkeypressed = ""
 end
 
 
@@ -26,6 +32,11 @@ end
 function love.draw()
     PixelService:draw()
     Ui:draw()
+    Gui:draw()
+
+    local x, y = love.mouse.getPosition()
+    if PixelService.tooLight and not(Ui.overUI) and Ui.objectHovering == nil then love.graphics.setColor(0, 0, 0) end
+    love.graphics.draw(Ui.currentIco, x, y, 0, 2, 2, Ui.currentIco:getWidth()/2, Ui.currentIco:getHeight() / 2)
 end
 
 function clamp(min, val, max)

@@ -16,8 +16,12 @@ ui.currentHue = 0
 ui.dragXable = false
 ui.dragYable = true
 
+ui.draggingX = false
+ui.draggingY = false
+
 ui.slices = {}
 ui.buttons = {}
+ui.textBoxes = {}
 ui.toolButtons = {}
 
 ui.currentColourPicker = {x=0,y=0,layer=2,type="colourPicker"}
@@ -66,6 +70,9 @@ function ui:load()
     ui.buttonHoverSprite = love.graphics.newImage("darkhoverbutton.png")
     ui.buttonClickSprite = love.graphics.newImage("darkclickbutton.png")
 
+    ui.textBoxSprite = love.graphics.newImage("textbox.png")
+    ui.textBoxHoverSprite = love.graphics.newImage("textboxhover.png")
+
     ui.colourSelectHover = {sprite=love.graphics.newImage("colourselecthover.png"),x=0,y=0}
     ui.colourSelectHoverLight = love.graphics.newImage("colourselecthoverlight.png")
 
@@ -76,14 +83,14 @@ function ui:load()
     --s.sizeX = 70
     --s.sizeY = 105
 
-    --s2 = register9Slice("light9slice.png", "light")
+    --s2 = 
     --s2.sizeX = 70
     --s2.sizeY = 7
 
     --s.pos = {x=100,y=100}
     --s2.pos = {x=100,y=100}
 
-    --bu = registerButton("darkbutton.png", "dark")
+    --bu = 
     --bu.sizeX = 32
 
     --bu.pos = {x=120,y=160}
@@ -92,6 +99,7 @@ function ui:load()
     registerToolButton("eraser")
     registerToolButton("eyedropper")
     registerToolButton("paintbucket")
+    registerToolButton("noise")
 end
 
 function ui:update(dt)
@@ -160,8 +168,6 @@ function ui:draw()
 
     love.graphics.setColor(1, 1, 1)
 
-
-    love.graphics.draw(ui.txt,5,-5,0,0.6,0.6)
     
     ui:drawColour()
     ui:drawHue()
@@ -170,9 +176,9 @@ function ui:draw()
     ui:drawButtons()
 
     
-    if PixelService.tooLight and not(ui.overUI) then love.graphics.setColor(0, 0, 0) end
+    
 
-    love.graphics.draw(ui.currentIco, x, y, 0, 2, 2, ui.currentIco:getWidth()/2, ui.currentIco:getHeight() / 2)
+    
     
 end
 
@@ -194,7 +200,9 @@ function ui:drawToolButtons()
                 if result then
                     chosenSprite = i.selectedSprite
                     if love.mouse.isDown(1) then
-                        PixelService.currentTool = i.toolType
+                        if PixelService.currentTool ~= "noise" then
+                            PixelService.currentTool = i.toolType
+                        end
                     end
                 end
             end
@@ -400,41 +408,98 @@ end
 function ui:draw9slices()
     local scaleSize = 2 
     for _,slice in pairs(ui.slices) do
-        for i,part in pairs(slice.parts) do
-            if part == slice.parts.t then 
-                love.graphics.draw(slice.sprite,part.q, slice.pos.x + (part.offset.x * scaleSize),(slice.pos.y + (part.offset.y) * scaleSize), 0,scaleSize * (slice.sizeX+0.5)*2,scaleSize,0,0)
-            elseif part == slice.parts.b then 
-                love.graphics.draw(slice.sprite,part.q, slice.pos.x + (part.offset.x * scaleSize),slice.pos.y + ((part.offset.y + (part.move.y * slice.sizeY)) * scaleSize), 0,scaleSize * (slice.sizeX+0.5)*2,scaleSize,0,0)
-            elseif part == slice.parts.l then 
-                love.graphics.draw(slice.sprite,part.q, slice.pos.x + (part.offset.x * scaleSize),(slice.pos.y + (part.offset.y-scaleSize) * scaleSize), 0,scaleSize,scaleSize * (slice.sizeY+1)*2,0,0)
-            elseif part == slice.parts.r then 
-                love.graphics.draw(slice.sprite,part.q, slice.pos.x + ((part.offset.x + (part.move.x * slice.sizeX)) * scaleSize),(slice.pos.y + (part.offset.y) * scaleSize), 0,scaleSize,scaleSize * (slice.sizeY+0.5)*2,0,0)
-            elseif part == slice.parts.m then 
-                love.graphics.draw(slice.sprite,part.q, slice.pos.x + (part.offset.x * scaleSize),(slice.pos.y + (part.offset.y) * scaleSize), 0,scaleSize * (slice.sizeX+0.5)*2,scaleSize * (slice.sizeY+0.5)*2,0,0)
-            else
-                love.graphics.draw(slice.sprite,part.q, slice.pos.x + ((part.offset.x + (part.move.x * slice.sizeX)) * scaleSize),slice.pos.y + ((part.offset.y + (part.move.y * slice.sizeY)) * scaleSize), 0,scaleSize,scaleSize,0,0)
-            end
+        if not(slice.bound) then
+            for i,part in pairs(slice.parts) do
+                if part == slice.parts.t then 
+                    love.graphics.draw(slice.sprite,part.q, slice.pos.x + (part.offset.x * scaleSize),(slice.pos.y + (part.offset.y) * scaleSize), 0,scaleSize * (slice.sizeX+0.5)*2,scaleSize,0,0)
+                elseif part == slice.parts.b then 
+                    love.graphics.draw(slice.sprite,part.q, slice.pos.x + (part.offset.x * scaleSize),slice.pos.y + ((part.offset.y + (part.move.y * slice.sizeY)) * scaleSize), 0,scaleSize * (slice.sizeX+0.5)*2,scaleSize,0,0)
+                elseif part == slice.parts.l then 
+                    love.graphics.draw(slice.sprite,part.q, slice.pos.x + (part.offset.x * scaleSize),(slice.pos.y + (part.offset.y-scaleSize) * scaleSize), 0,scaleSize,scaleSize * (slice.sizeY+1)*2,0,0)
+                elseif part == slice.parts.r then 
+                    love.graphics.draw(slice.sprite,part.q, slice.pos.x + ((part.offset.x + (part.move.x * slice.sizeX)) * scaleSize),(slice.pos.y + (part.offset.y) * scaleSize), 0,scaleSize,scaleSize * (slice.sizeY+0.5)*2,0,0)
+                elseif part == slice.parts.m then 
+                    love.graphics.draw(slice.sprite,part.q, slice.pos.x + (part.offset.x * scaleSize),(slice.pos.y + (part.offset.y) * scaleSize), 0,scaleSize * (slice.sizeX+0.5)*2,scaleSize * (slice.sizeY+0.5)*2,0,0)
+                else
+                    love.graphics.draw(slice.sprite,part.q, slice.pos.x + ((part.offset.x + (part.move.x * slice.sizeX)) * scaleSize),slice.pos.y + ((part.offset.y + (part.move.y * slice.sizeY)) * scaleSize), 0,scaleSize,scaleSize,0,0)
+                end
 
+            end
         end
+    end
+end
+
+function ui:draw9sliceSingular(slice)
+    local scaleSize = 2 
+    for i,part in pairs(slice.parts) do
+        if part == slice.parts.t then 
+            love.graphics.draw(slice.sprite,part.q, slice.pos.x + (part.offset.x * scaleSize),(slice.pos.y + (part.offset.y) * scaleSize), 0,scaleSize * (slice.sizeX+0.5)*2,scaleSize,0,0)
+        elseif part == slice.parts.b then 
+            love.graphics.draw(slice.sprite,part.q, slice.pos.x + (part.offset.x * scaleSize),slice.pos.y + ((part.offset.y + (part.move.y * slice.sizeY)) * scaleSize), 0,scaleSize * (slice.sizeX+0.5)*2,scaleSize,0,0)
+        elseif part == slice.parts.l then 
+            love.graphics.draw(slice.sprite,part.q, slice.pos.x + (part.offset.x * scaleSize),(slice.pos.y + (part.offset.y-scaleSize) * scaleSize), 0,scaleSize,scaleSize * (slice.sizeY+1)*2,0,0)
+        elseif part == slice.parts.r then 
+            love.graphics.draw(slice.sprite,part.q, slice.pos.x + ((part.offset.x + (part.move.x * slice.sizeX)) * scaleSize),(slice.pos.y + (part.offset.y) * scaleSize), 0,scaleSize,scaleSize * (slice.sizeY+0.5)*2,0,0)
+        elseif part == slice.parts.m then 
+            love.graphics.draw(slice.sprite,part.q, slice.pos.x + (part.offset.x * scaleSize),(slice.pos.y + (part.offset.y) * scaleSize), 0,scaleSize * (slice.sizeX+0.5)*2,scaleSize * (slice.sizeY+0.5)*2,0,0)
+        else
+            love.graphics.draw(slice.sprite,part.q, slice.pos.x + ((part.offset.x + (part.move.x * slice.sizeX)) * scaleSize),slice.pos.y + ((part.offset.y + (part.move.y * slice.sizeY)) * scaleSize), 0,scaleSize,scaleSize,0,0)
+        end
+
     end
 end
 
 function ui:drawButtons()
     local scaleSize = 2
     for _,slice in pairs(ui.buttons) do
-        for i,part in pairs(slice.parts) do
-            if part == slice.parts.t then 
-                love.graphics.draw(slice.sprite,part.q, slice.pos.x + (part.offset.x * scaleSize),(slice.pos.y + (part.offset.y) * scaleSize), 0,scaleSize * (slice.sizeX+0.5)*2,scaleSize,0,0)
-            else
-                love.graphics.draw(slice.sprite,part.q, slice.pos.x + ((part.offset.x + (part.move.x * slice.sizeX)) * scaleSize),slice.pos.y + ((part.offset.y + (part.move.y * slice.sizeY)) * scaleSize), 0,scaleSize,scaleSize,0,0)
+        if not(slice.bound) then
+            for i,part in pairs(slice.parts) do
+                if part == slice.parts.t then 
+                    love.graphics.draw(slice.sprite,part.q, slice.pos.x + (part.offset.x * scaleSize),(slice.pos.y + (part.offset.y) * scaleSize), 0,scaleSize * (slice.sizeX+0.5)*2,scaleSize,0,0)
+                else
+                    love.graphics.draw(slice.sprite,part.q, slice.pos.x + ((part.offset.x + (part.move.x * slice.sizeX)) * scaleSize),slice.pos.y + ((part.offset.y + (part.move.y * slice.sizeY)) * scaleSize), 0,scaleSize,scaleSize,0,0)
+                end
+
+
+
             end
-
-
-
+            love.graphics.draw(slice.text,slice.pos.x + ((slice.parts.t.offset.x + (slice.parts.t.move.x * slice.sizeX)) * scaleSize) - (slice.text:getWidth() / 3.58),slice.pos.y + ((slice.parts.t.offset.y + (slice.parts.t.move.y * slice.sizeY)) * scaleSize)-2,0,scaleSize/3.5,scaleSize/3.5)
         end
-        love.graphics.draw(slice.text,slice.pos.x + ((slice.parts.t.offset.x + (slice.parts.t.move.x * slice.sizeX)) * scaleSize) - (slice.text:getWidth() / 3.58),slice.pos.y + ((slice.parts.t.offset.y + (slice.parts.t.move.y * slice.sizeY)) * scaleSize)-2,0,scaleSize/3.5,scaleSize/3.5)
     end
 end
+
+
+function ui:drawButtonSingular(slice)
+    local scaleSize = 2
+    for i,part in pairs(slice.parts) do
+        if part == slice.parts.t then 
+            love.graphics.draw(slice.sprite,part.q, slice.pos.x + (part.offset.x * scaleSize),(slice.pos.y + (part.offset.y) * scaleSize), 0,scaleSize * (slice.sizeX+0.5)*2,scaleSize,0,0)
+        else
+            love.graphics.draw(slice.sprite,part.q, slice.pos.x + ((part.offset.x + (part.move.x * slice.sizeX)) * scaleSize),slice.pos.y + ((part.offset.y + (part.move.y * slice.sizeY)) * scaleSize), 0,scaleSize,scaleSize,0,0)
+        end
+
+
+
+    end
+    love.graphics.draw(slice.text,slice.pos.x + ((slice.parts.t.offset.x + (slice.parts.t.move.x * slice.sizeX)) * scaleSize) - (slice.text:getWidth() / 3.58),slice.pos.y + ((slice.parts.t.offset.y + (slice.parts.t.move.y * slice.sizeY)) * scaleSize)-2,0,scaleSize/3.5,scaleSize/3.5)
+end
+
+
+function ui:drawTextBoxSingular(slice)
+    local scaleSize = 2
+    for i,part in pairs(slice.parts) do
+        if part == slice.parts.t then 
+            love.graphics.draw(slice.sprite,part.q, slice.pos.x + (part.offset.x * scaleSize),(slice.pos.y + (part.offset.y) * scaleSize), 0,scaleSize * (slice.sizeX+0.5)*2,scaleSize,0,0)
+        else
+            love.graphics.draw(slice.sprite,part.q, slice.pos.x + ((part.offset.x + (part.move.x * slice.sizeX)) * scaleSize),slice.pos.y + ((part.offset.y + (part.move.y * slice.sizeY)) * scaleSize), 0,scaleSize,scaleSize,0,0)
+        end
+
+
+
+    end
+    love.graphics.draw(slice.text,slice.pos.x + 8,slice.pos.y + ((slice.parts.t.offset.y + (slice.parts.t.move.y * slice.sizeY)) * scaleSize)-4,0,scaleSize/3.5,scaleSize/3.5)
+end
+
 
 ui.camX = 0
 ui.camY = 0
@@ -448,15 +513,18 @@ end
         ui.camY = ui.camY + dy
     end
 
-    if ui.dragXable and love.mouse.isDown(1) then
+    if (ui.dragXable or ui.draggingX) and love.mouse.isDown(1) then
+        ui.draggingX = true
         ui.screenBounds.left.x = clamp(20, ui.screenBounds.left.x + dx, ui.screenBounds.right.x)
     end
 
-    if ui.dragYable and love.mouse.isDown(1) then
+    if (ui.dragYable or ui.draggingY) and love.mouse.isDown(1) then
+        ui.draggingY = true
         ui.screenBounds.bottom.y = clamp(ui.screenBounds.left.y, ui.screenBounds.bottom.y + dy, love.graphics:getHeight() - 20)
     end
 end
 
+local tbSelected = false
 function ui:checkObjectCulling()
     local x,y = love.mouse.getPosition()
     for _,i in pairs(ui.slices) do
@@ -478,7 +546,11 @@ function ui:checkObjectCulling()
 
                     if love.mouse.isDown(1) then
                         i.sprite = ui.buttonClickSprite
-                        
+                        if mousejustpressed then
+                            if i.useFunc ~= nil then
+                                i:useFunc()
+                            end
+                        end 
                     end
                 else
                     i.sprite = ui.buttonSprite
@@ -488,6 +560,54 @@ function ui:checkObjectCulling()
             end
         else
             i.sprite = ui.buttonSprite
+        end
+    end
+
+    for _,i in pairs(ui.textBoxes) do
+        if x > i.pos.x and x < i.pos.x + ((i.parts.tr.offset.x + (i.parts.tr.move.x * i.sizeX)) * 2) then
+            
+            if y > i.pos.y and y < i.pos.y + 13 * 2 then
+                local result = ui:queryHoverChange(i)
+                if result then
+                    if love.mouse.isDown(1) then
+                        i.sprite = ui.textBoxHoverSprite
+                        tbSelected = true
+                    end
+
+                    if tbSelected then
+                        local txt = i.textStr
+
+                        if justkeypressed == "backspace" then
+                            txt = txt:sub(1, #txt - 1)
+                        end
+
+                        if justkeypressed == "space" then
+                            txt = txt.. " "
+                        end
+
+                        if #justkeypressed == 1 then
+                            txt = txt.. justkeypressed
+                        end
+
+                        local newTxt = love.graphics.newText(ui.font, txt)
+                        local textScale = 2 / 3.5
+                        local innerWidth = i.sizeX * 2
+
+                        if newTxt:getWidth() * textScale <= innerWidth*2 then
+                            i.text = newTxt
+                            i.textStr = txt
+                        end
+
+                    end
+                else
+                    i.sprite = ui.textBoxSprite
+                    tbSelected = false
+                end
+            else
+                i.sprite = ui.textBoxSprite
+            end
+        else
+            i.sprite = ui.textBoxSprite
         end
     end
 
@@ -631,8 +751,10 @@ function ui:wheelmoved(x,y)
     ui.camY = ui.camY + (my - cy - ui.camY) * (1 - scalar / old)
 end
 
+mousejustpressed = false
 function ui:mousepressed(x, y, button, istouch)
     if button == 1 then
+        mousejustpressed=true
         local px = 10
         local py = (love.graphics:getHeight() - 50) - colorPickerImg:getHeight() * 2
         local pw = colorPickerImg:getWidth() * 2
@@ -663,6 +785,8 @@ end
 function ui:mousereleased(x, y, button)
     if button == 1 or button == 2 then
         if button == 1 then
+            ui.draggingX = false
+            ui.draggingY = false
             ui.colourDragging = false
             ui.hueDragging = false
         end
@@ -689,32 +813,36 @@ end
 
 control = false
 alt = false
+justkeypressed = ""
 function ui:keypressed( key, scancode, isrepeat )
+    justkeypressed = scancode
    if scancode == "lctrl" then
       control = true
    end
 
-   if scancode == "lalt" then
-        alt = true
-        PixelService.bankedTool = PixelService.currentTool
-        PixelService.currentTool = "eyedropper"
-   end
+   if PixelService.currentTool ~= "noise" then
+    if scancode == "lalt" then
+            alt = true
+            PixelService.bankedTool = PixelService.currentTool
+            PixelService.currentTool = "eyedropper"
+    end
 
-   if scancode == "b" then
-        PixelService.currentTool = "brush"
-   end
+    if scancode == "b" then
+            PixelService.currentTool = "brush"
+    end
 
-   if scancode == "e" then
-        PixelService.currentTool = "eraser"
-   end
+    if scancode == "e" then
+            PixelService.currentTool = "eraser"
+    end
 
-   if scancode == "i" then
-        PixelService.currentTool = "eyedropper"
-   end
+    if scancode == "i" then
+            PixelService.currentTool = "eyedropper"
+    end
 
-   if scancode == "g" then
-        PixelService.currentTool = "paintbucket"
-   end
+    if scancode == "g" then
+            PixelService.currentTool = "paintbucket"
+    end
+end
 
     if control and scancode == "z" then
         local targetEntry = table.remove(PixelService.localBigPx)
@@ -724,13 +852,75 @@ function ui:keypressed( key, scancode, isrepeat )
             end
         end
     end
+
+
+    if control and scancode == "n" then
+        ui:generateNewCanvas()
+    end
+
+    if control and scancode == "s" then
+        ui:saveFile()
+    end
+end
+
+function ui:saveFile()
+    local x, y = love.mouse.getPosition()
+    local pX, pY = PixelService:posToPixel(img,love.graphics.getWidth() / 2, love.graphics.getHeight() / 2,x, y)
+    local w, h = imgData:getDimensions()
+    local func = function(gui)
+        local name = "file"
+        if gui.elements[1].textStr ~= "" then name = gui.elements[1].textStr end
+        
+        imgData:encode("png", name.. ".png")
+
+        removeFloatingGui(gui)
+
+        love.system.openURL("file://" .. love.filesystem.getSaveDirectory())
+
+
+
+    end
+
+
+    Gui:createFloatingGui("Save File",100, love.graphics.getHeight()/2-250,62,100,"saveFile", func)
+    Gui:addElement(Gui.guis.floating.saveFile, registerTextBox("textbox.png", "nameTB", "Name Here"))
+            
+end
+
+function ui:generateNewCanvas()
+    local x, y = love.mouse.getPosition()
+    local pX, pY = PixelService:posToPixel(img,love.graphics.getWidth() / 2, love.graphics.getHeight() / 2,x, y)
+    local w, h = imgData:getDimensions()
+    local func = function(gui)
+        local newX = 16
+        local newY = 16
+        if tonumber(gui.elements[1].textStr) ~= nil then newX = tonumber(gui.elements[1].textStr) end
+        if tonumber(gui.elements[2].textStr) ~= nil then newY = tonumber(gui.elements[2].textStr) end
+        
+        imgData = love.image.newImageData(newX, newY)
+
+        img = love.graphics.newImage(imgData)
+
+        cursorImgData = love.image.newImageData(newX, newY)
+
+        cursorImg = love.graphics.newImage(cursorImgData)
+
+        removeFloatingGui(gui)
+
+    end
+
+
+    Gui:createFloatingGui("New Sprite",love.graphics.getWidth()/2-31, love.graphics.getHeight()/2-250,62,100,"newCanvas", func)
+    Gui:addElement(Gui.guis.floating.newCanvas, registerTextBox("textbox.png", "canvasxTB", "16"))
+    Gui:addElement(Gui.guis.floating.newCanvas, registerTextBox("textbox.png", "canvasyTB", "16"))
+            
 end
 
 function ui:keyreleased( key, scancode, isrepeat )
    if scancode == "lctrl" then
       control = false
    end
-   if scancode == "lalt" then
+   if scancode == "lalt" and PixelService.currentTool ~= "noise" then
       alt = false
       PixelService.currentTool = PixelService.bankedTool
    end
@@ -808,6 +998,7 @@ function register9Slice(spritePath, id)
         sizeY = 0,
         pos = {x=0,y=0},
         layer = 2,
+        bount = false,
         type = "9slice",
         parts = {    
             tl = {q=love.graphics.newQuad(0,0,3,3,sprite:getWidth(),sprite:getHeight()),offset={x=0,y=0},move={x=0,y=0}},
@@ -824,21 +1015,24 @@ function register9Slice(spritePath, id)
         sprite = sprite
     }
 
-    table.insert(ui.slices, slice)
+    ui.slices[id] = slice
     return slice
 end
 
-function registerButton(spritePath, id)
+function registerButton(spritePath, id, text)
+    text = text or "Empty"
     local sprite = love.graphics.newImage(spritePath)
-    local text = love.graphics.newText(ui.font, "Cool Button")
+    local newText = love.graphics.newText(ui.font, text)
 
     local slice = {    
-        text = text,
+        text = newText,
         sizeX = 0,
         sizeY = 0,
         layer = 3,
+        bount = false,
         type = "button",
         pos = {x=0,y=0},
+        useFunc = nil,
         parts = {    
             tl = {q=love.graphics.newQuad(0,0,3,18,sprite:getWidth(),sprite:getHeight()),offset={x=0,y=0},move={x=0,y=0}},
             t = {q=love.graphics.newQuad(3,0,1,18,sprite:getWidth(),sprite:getHeight()),offset={x=3,y=0},move={x=1,y=0}},
@@ -848,6 +1042,32 @@ function registerButton(spritePath, id)
     }
 
     table.insert(ui.buttons, slice)
+    return slice
+end
+
+function registerTextBox(spritePath, id, text)
+    text = text or "Empty"
+    local sprite = love.graphics.newImage(spritePath)
+    local newText = love.graphics.newText(ui.font, text)
+
+    local slice = {    
+        text = newText,
+        textStr = text,
+        sizeX = 44,
+        sizeY = 0,
+        layer = 3,
+        bount = false,
+        type = "textBox",
+        pos = {x=0,y=0},
+        parts = {    
+            tl = {q=love.graphics.newQuad(0,0,3,13,sprite:getWidth(),sprite:getHeight()),offset={x=0,y=0},move={x=0,y=0}},
+            t = {q=love.graphics.newQuad(3,0,1,13,sprite:getWidth(),sprite:getHeight()),offset={x=3,y=0},move={x=1,y=0}},
+            tr = {q=love.graphics.newQuad(4,0,3,13,sprite:getWidth(),sprite:getHeight()),offset={x=4,y=0},move={x=2,y=0}},
+        },
+        sprite = sprite
+    }
+
+    table.insert(ui.textBoxes, slice)
     return slice
 end
 

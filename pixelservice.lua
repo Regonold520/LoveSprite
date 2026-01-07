@@ -32,6 +32,7 @@ function pixelservice:update(dt)
     local x, y = love.mouse.getPosition()
     updateCursor(x,y)
     
+    if pixelservice.currentTool == "noise" then pixelservice.noiseTool() end
     if Ui.objectHovering == nil and not(Ui.colourDragging) and not(Ui.hueDragging) then
         if pixelservice.currentTool == "brush" then pixelservice.brushTool() 
         elseif pixelservice.currentTool == "eyedropper" then pixelservice.eyedropperTool()
@@ -177,6 +178,43 @@ function pixelservice:eyedropperTool()
 
             lastPx = {x=pX, y=pY}
             
+        end
+    end
+end
+
+function pixelservice:noiseTool()
+    local x, y = love.mouse.getPosition()
+    local pX, pY = pixelservice:posToPixel(img,love.graphics.getWidth() / 2, love.graphics.getHeight() / 2,x, y)
+    local w, h = imgData:getDimensions()
+    if Gui.guis.floating.test == nil then
+        local func = function(gui)
+            local newX = 0
+            local newY = 0
+            if tonumber(gui.elements[1].textStr) ~= nil then newX = tonumber(gui.elements[1].textStr) end
+            if tonumber(gui.elements[2].textStr) ~= nil then newY = tonumber(gui.elements[2].textStr) end
+            pixelservice:generateNoise(newX, newY)
+
+            removeFloatingGui(gui)
+
+        end
+
+
+        Gui:createFloatingGui("Generate Noise" ,love.graphics.getWidth()-350, love.graphics.getHeight()/2-250,62,100,"test", func)
+        Gui:addElement(Gui.guis.floating.test, registerTextBox("textbox.png", "noisexTB", "16"))
+        Gui:addElement(Gui.guis.floating.test, registerTextBox("textbox.png", "noiseyTB", "16"))
+            
+    end
+end
+
+function pixelservice:generateNoise(dimX, dimY)
+    local frequency = 0.1
+    for x=0,dimX-1 do
+        for y=0,dimY-1 do
+            local r,g,b = hsv(0,0,love.math.noise(x * frequency,y * frequency))
+            
+            if x >= 0 and x < imgData:getWidth() and y >= 0 and y < imgData:getHeight() then
+                pixelservice:setPixelFast(imgData, x, y, r, g, b, 1)
+            end
         end
     end
 end
