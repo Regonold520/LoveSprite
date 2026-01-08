@@ -95,6 +95,7 @@ function ui:load()
 
     --bu.pos = {x=120,y=160}
 
+    registerToolButton("select")
     registerToolButton("brush")
     registerToolButton("eraser")
     registerToolButton("eyedropper")
@@ -782,9 +783,11 @@ function ui:mousepressed(x, y, button, istouch)
    end
 end
 
+mousejustreleased = false
 function ui:mousereleased(x, y, button)
     if button == 1 or button == 2 then
         if button == 1 then
+            mousejustreleased = true
             ui.draggingX = false
             ui.draggingY = false
             ui.colourDragging = false
@@ -963,30 +966,32 @@ function ui:changeColour(r, g, b, a)
 end
 
 local lastX, lastY = 0,0
+ui.overrideCursorUpdate = false
 function updateCursor(mX,mY)
-    cursorImgData = love.image.newImageData(64,64)
-    local pX, pY = PixelService:posToPixel(cursorImg,love.graphics.getWidth() / 2, love.graphics.getHeight() / 2,mX, mY)
-    local w, h = cursorImgData:getDimensions()
-    local r,g,b,a = 0,0,1,1
-    if lastX ~= mX or lastY ~= mY and not(ui.overUI)then
-        lastX, lastY = mX, mY
-        if pX >= 0 and pY >= 0 and pX < w and pY < h then
-            if love.mouse.isDown(2) then
-                PixelService.tempC = {r=0,g=0,b=0,a=0}
-            else
-                PixelService.tempC = PixelService.currentColour
-            end
-            if PixelService.currentTool == "brush" or PixelService.currentTool == "paintbucket" then
-                local newH,newS,newV = rgbToHsv(PixelService.tempC.r,PixelService.tempC.g,PixelService.tempC.b)
-                print(newV,newS)
+    if ui.overrideCursorUpdate == false then 
+        cursorImgData = love.image.newImageData(64,64)
+        local pX, pY = PixelService:posToPixel(cursorImg,love.graphics.getWidth() / 2, love.graphics.getHeight() / 2,mX, mY)
+        local w, h = cursorImgData:getDimensions()
+        local r,g,b,a = 0,0,1,1
+        if lastX ~= mX or lastY ~= mY and not(ui.overUI)then
+            lastX, lastY = mX, mY
+            if pX >= 0 and pY >= 0 and pX < w and pY < h then
+                if love.mouse.isDown(2) then
+                    PixelService.tempC = {r=0,g=0,b=0,a=0}
+                else
+                    PixelService.tempC = PixelService.currentColour
+                end
+                if PixelService.currentTool == "brush" or PixelService.currentTool == "paintbucket" then
+                    local newH,newS,newV = rgbToHsv(PixelService.tempC.r,PixelService.tempC.g,PixelService.tempC.b)
 
-                PixelService.tooLight = newV > 0.5 and newS < 0.5
+                    PixelService.tooLight = newV > 0.5 and newS < 0.5
 
-                PixelService:setPixelFast(cursorImgData, pX, pY, PixelService.tempC.r, PixelService.tempC.g, PixelService.tempC.b, PixelService.tempC.a, false)
+                    PixelService:setPixelFast(cursorImgData, pX, pY, PixelService.tempC.r, PixelService.tempC.g, PixelService.tempC.b, PixelService.tempC.a, false)
+                end
             end
+            
+            cursorImg = love.graphics.newImage(cursorImgData)
         end
-        
-        cursorImg = love.graphics.newImage(cursorImgData)
     end
 end
 

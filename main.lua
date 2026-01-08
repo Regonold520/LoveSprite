@@ -21,6 +21,7 @@ function love.update(dt)
     Gui:update(dt)
 
     mousejustpressed = false
+    mousejustreleased = false
     justkeypressed = ""
 end
 

@@ -43,7 +43,6 @@ function gui:drawFloatingGuis()
 end
 
 function gui:createFloatingGui(title ,posX, posY, dimX,dimY,id, returnFunc)
-    print("?")
     returnFunc = returnFunc or nil
     local newGui = {
         x = posX,
@@ -103,7 +102,6 @@ function removeFloatingGui(inputGui)
 
     for _,i in pairs(Ui.slices) do
         if i == inputGui.topSlice or i == inputGui.bottomSlice then
-            print(_)
             Ui.slices[_] = nil
         end
 

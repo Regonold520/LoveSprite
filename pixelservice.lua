@@ -37,7 +37,8 @@ function pixelservice:update(dt)
         if pixelservice.currentTool == "brush" then pixelservice.brushTool() 
         elseif pixelservice.currentTool == "eyedropper" then pixelservice.eyedropperTool()
         elseif pixelservice.currentTool == "eraser" then pixelservice.eraserTool()
-        elseif pixelservice.currentTool == "paintbucket" then pixelservice.paintBucketTool() end
+        elseif pixelservice.currentTool == "paintbucket" then pixelservice.paintBucketTool()
+        elseif pixelservice.currentTool == "select" then pixelservice.selectTool() end
     end
 
     if pixelservice.imageDirty then
@@ -69,6 +70,120 @@ function pixelservice:brushTool()
     else
         lastPx = nil
     end
+end
+
+selectTracking = false
+selectStartPos = {x=0,y=0}
+selectEndPos = {x=0,y=0}
+
+pixelservice.selectedArea = nil
+
+function pixelservice:selectTool()
+    print(pixelservice.selectedArea)
+    cursorImgData = love.image.newImageData(64,64)
+    local x, y = love.mouse.getPosition()
+    local pX, pY = pixelservice:posToPixel(img,love.graphics.getWidth() / 2, love.graphics.getHeight() / 2,x, y)
+    local w, h = imgData:getDimensions()
+    
+    if mousejustpressed then
+        if pX >= 0 and pY >= 0 and pX < w and pY < h then
+            selectTracking = true
+            selectStartPos = {x=pX,y=pY}
+        end
+    end
+
+    if mousejustreleased then
+        selectTracking = false
+        selectEndPos = {x=pX,y=pY}
+        
+        if selectStartPos.x  < pX or selectStartPos.y  < pY then
+            pixelservice.selectedArea = {
+                startPos = selectStartPos,
+                endPos = selectEndPos
+            }
+        else
+            pixelservice.selectedArea = nil
+        end
+
+    end
+
+    Ui.overrideCursorUpdate = selectTracking
+
+    if selectTracking then
+        PixelService:setPixelFast(cursorImgData, selectStartPos.x, selectStartPos.y, 1, 0, 0, 1, false)
+        PixelService:setPixelFast(cursorImgData, pX, pY, 1, 0, 0, 1, false)
+        local xMult = (selectStartPos.x - pX > 0) and 1 or -1
+        local yMult = (selectStartPos.y - pY > 0) and 1 or -1
+
+
+
+        for newx=0,math.abs(selectStartPos.x-pX) do
+            local colour = 1
+
+            if selectStartPos.x- (newx*xMult) >= 0 and selectStartPos.y >= 0 and selectStartPos.x- (newx*xMult) < w and selectStartPos.y < h then
+
+                local topR, topG, topB, topA = imgData:getPixel(selectStartPos.x - (newx*xMult), selectStartPos.y)
+
+                local newH, newS, newV = rgbToHsv(topR,topG,topB)
+
+                if newV > 0.5 then colour = 0 end
+
+                PixelService:setPixelFast(cursorImgData, selectStartPos.x - (newx*xMult), selectStartPos.y, colour, colour, colour, 1, false)
+            end
+
+
+            colour = 1
+
+            if selectStartPos.x- (newx*xMult) >= 0 and pY >= 0 and selectStartPos.x- (newx*xMult) < w and pY < h then
+
+                topR, topG, topB, topA = imgData:getPixel(selectStartPos.x - (newx*xMult), pY)
+
+                newH, newS, newV = rgbToHsv(topR,topG,topB)
+
+                if newV > 0.5 then colour = 0 end
+
+
+                PixelService:setPixelFast(cursorImgData, selectStartPos.x - (newx*xMult), pY, colour, colour, colour, 1, false)
+            end
+        end
+
+        for newy=0,math.abs(selectStartPos.y-pY) do
+
+
+
+
+            local colour = 1
+
+            if selectStartPos.x >= 0 and selectStartPos.y - (newy*yMult) >= 0 and selectStartPos.x < w and selectStartPos.y - (newy*yMult) < h then
+
+                local topR, topG, topB, topA = imgData:getPixel(selectStartPos.x, selectStartPos.y - (newy*yMult))
+
+                local newH, newS, newV = rgbToHsv(topR,topG,topB)
+
+                if newV > 0.5 then colour = 0 end
+
+                PixelService:setPixelFast(cursorImgData, selectStartPos.x, selectStartPos.y - (newy*yMult), colour, colour, colour, 1, false)
+            end
+            colour = 1
+
+            if pX >= 0 and selectStartPos.y - (newy*yMult) >= 0 and pX < w and selectStartPos.y - (newy*yMult) < h then
+
+                topR, topG, topB, topA = imgData:getPixel(pX, selectStartPos.y - (newy*yMult))
+
+                newH, newS, newV = rgbToHsv(topR,topG,topB)
+
+                if newV > 0.5 then colour = 0 end
+
+
+                PixelService:setPixelFast(cursorImgData,  pX, selectStartPos.y - (newy*yMult), colour, colour, colour, 1, false)
+            end
+        end
+
+
+
+        cursorImg = love.graphics.newImage(cursorImgData)
+    end
+
 end
 
 function pixelservice:eraserTool()
@@ -112,7 +227,6 @@ function pixelservice:paintBucketTool()
             })
 
             while #pRemaining > 0 do
-                print(#pRemaining)
                 local count = 1
                 for _,i in pairs(pRemaining) do
                     pixelservice:setPixelFast(imgData, i.x, i.y, pixelservice.currentColour.r, pixelservice.currentColour.g, pixelservice.currentColour.b, pixelservice.currentColour.a)
@@ -264,9 +378,35 @@ function pixelservice:draw()
 
     end
 
+    
+
     love.graphics.draw(img, love.graphics.getWidth() / 2 + Ui.camX,love.graphics.getHeight() / 2 + Ui.camY, 0, scalar, scalar, img:getWidth() / 2, img:getHeight() / 2)
     love.graphics.draw(cursorImg, love.graphics.getWidth() / 2 + Ui.camX,love.graphics.getHeight() / 2 + Ui.camY, 0, scalar, scalar, cursorImg:getWidth() / 2, cursorImg:getHeight() / 2)
     
+    if pixelservice.selectedArea ~= nil then
+        local sX, sY = pixelservice.selectedArea.startPos.x, pixelservice.selectedArea.startPos.y
+        local eX, eY = pixelservice.selectedArea.endPos.x, pixelservice.selectedArea.endPos.y
+
+        local topLeftX = math.min(sX, eX)
+        local topLeftY = math.min(sY, eY)
+        local bottomRightX = math.max(sX, eX)
+        local bottomRightY = math.max(sY, eY)
+
+        local startX, startY = pixelservice:pixelToPos(imgData, love.graphics.getWidth()/2, love.graphics.getHeight()/2, topLeftX, topLeftY)
+        local endX, endY = pixelservice:pixelToPos(imgData, love.graphics.getWidth()/2, love.graphics.getHeight()/2, bottomRightX + 1, bottomRightY + 1) 
+
+        local rectX = startX
+        local rectY = startY
+        local rectW = endX - startX
+        local rectH = endY - startY
+
+        love.graphics.setColor(1, 1, 1)
+        love.graphics.rectangle("line", rectX, rectY, rectW, rectH)
+    end
+
+
+
+
 end
 
 
@@ -287,25 +427,41 @@ function pixelservice:drawLine(x0, y0, x1, y1, r, g, b, a)
 end
 
 function pixelservice:setPixelFast(imgToUse, x, y, r, g, b, a, countPx)
-    if countPx == nil then countPx = true end
+    local w, h = imgData:getDimensions()
 
-    local key = x .. "," .. y
 
-    if countPx and not pixelservice.localCurrentPxSet[key] then
-        local oldR, oldG, oldB, oldA = imgToUse:getPixel(x, y)
-        oldR, oldG, oldB, oldA = oldR or 0, oldG or 0, oldB or 0, oldA or 0
+    if x >= 0 and y >= 0 and x < w and y < h then
 
-        local entry = {
-            x = x,
-            y = y,
-            old = { r = oldR, g = oldG, b = oldB, a = oldA }
-        }
+        if pixelservice.selectedArea ~= nil then
+            if x >= pixelservice.selectedArea.startPos.x and y >= pixelservice.selectedArea.startPos.y and x <= pixelservice.selectedArea.endPos.x and y <= pixelservice.selectedArea.endPos.y then
 
-        pixelservice.localCurrentPxSet[key] = entry
-        table.insert(pixelservice.localCurrentPx, entry)
+            else
+                return
+            end
+
+        end
+
+
+        if countPx == nil then countPx = true end
+
+        local key = x .. "," .. y
+
+        if countPx and not pixelservice.localCurrentPxSet[key] then
+            local oldR, oldG, oldB, oldA = imgToUse:getPixel(x, y)
+            oldR, oldG, oldB, oldA = oldR or 0, oldG or 0, oldB or 0, oldA or 0
+
+            local entry = {
+                x = x,
+                y = y,
+                old = { r = oldR, g = oldG, b = oldB, a = oldA }
+            }
+
+            pixelservice.localCurrentPxSet[key] = entry
+            table.insert(pixelservice.localCurrentPx, entry)
+        end
+        imgToUse:setPixel(x, y, r, g, b, a)
+        pixelservice.imageDirty = true
     end
-    imgToUse:setPixel(x, y, r, g, b, a)
-    pixelservice.imageDirty = true
 end
 
 
@@ -327,5 +483,10 @@ function pixelservice:posToPixel(theimg,imgX, imgY,x, y)
     return calcX, calcY
 end
 
+function pixelservice:pixelToPos(theimg, imgX, imgY, px, py)
+    local x = imgX + Ui.camX - theimg:getWidth()/2 * scalar + px * scalar
+    local y = imgY + Ui.camY - theimg:getHeight()/2 * scalar + py * scalar
+    return x, y
+end
 
 return pixelservice
