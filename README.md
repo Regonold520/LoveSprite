@@ -1,0 +1,1 @@
+This project is a pixelart editor akin to those of aseprite and libresprite but created in the LOVE framework, you can use this by downloading the build from the latest github release, unzipping the folder and running the LoveSprite.exe :D happy spriting!
