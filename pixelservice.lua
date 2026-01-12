@@ -33,7 +33,7 @@ function pixelservice:update(dt)
     updateCursor(x,y)
     
     if pixelservice.currentTool == "noise" then pixelservice.noiseTool() end
-    if Ui.objectHovering == nil and not(Ui.colourDragging) and not(Ui.hueDragging) then
+    if Ui.objectHovering == nil and not(Ui.colourDragging) and not(Ui.hueDragging) and not(Ui.canvasTranslating) then
         if pixelservice.currentTool == "brush" then pixelservice.brushTool() 
         elseif pixelservice.currentTool == "eyedropper" then pixelservice.eyedropperTool()
         elseif pixelservice.currentTool == "eraser" then pixelservice.eraserTool()
@@ -61,7 +61,7 @@ function pixelservice:brushTool()
             if lastPx then
                 pixelservice:drawLine(lastPx.x, lastPx.y, pX, pY, tempC.r,tempC.g, tempC.b, tempC.a)
             else
-                pixelservice:setPixelFast(imgData, pX, pY, tempC.r, tempC.g, tempC.b, tempC.a)
+                pixelservice:setPixelFast(imgData, pX, pY, tempC.r, tempC.g, tempC.b, tempC.a, true)
             end
 
             lastPx = {x=pX, y=pY}
@@ -78,13 +78,35 @@ selectEndPos = {x=0,y=0}
 
 pixelservice.selectedArea = nil
 
-function pixelservice:selectTool()
-    print(pixelservice.selectedArea)
+pixelservice.selectrionDraggable = false
+pixelservice.selectrionDragMouse = nil
+
+function pixelservice:selectSelection()
     cursorImgData = love.image.newImageData(64,64)
     local x, y = love.mouse.getPosition()
     local pX, pY = pixelservice:posToPixel(img,love.graphics.getWidth() / 2, love.graphics.getHeight() / 2,x, y)
     local w, h = imgData:getDimensions()
-    
+
+    if mousejustpressed then
+        pixelservice.selectrionDragMouse = {x=pX,y=pY}
+    end
+
+    pixelservice.selectrionDraggable = love.mouse.isDown(1)
+end
+
+function pixelservice:selectTool()
+    cursorImgData = love.image.newImageData(64,64)
+    local x, y = love.mouse.getPosition()
+    local pX, pY = pixelservice:posToPixel(img,love.graphics.getWidth() / 2, love.graphics.getHeight() / 2,x, y)
+    local w, h = imgData:getDimensions()
+    if pixelservice.selectedArea ~= nil then
+        local startbX,startbY = pixelservice:pixelToPos(imgData, love.graphics.getWidth()/2, love.graphics.getHeight()/2, pixelservice.selectedArea.startPos.x, pixelservice.selectedArea.startPos.y)
+        local endbX,endbY = pixelservice:pixelToPos(imgData, love.graphics.getWidth()/2, love.graphics.getHeight()/2, pixelservice.selectedArea.endPos.x+1, pixelservice.selectedArea.endPos.y+1)
+        if x >= startbX and x <= endbX and y >= startbY and y <= endbY then
+            pixelservice:selectSelection()
+            if not(selectTracking) then return end
+        end
+    end
     if mousejustpressed then
         if pX >= 0 and pY >= 0 and pX < w and pY < h then
             selectTracking = true
@@ -400,6 +422,8 @@ function pixelservice:draw()
         local rectW = endX - startX
         local rectH = endY - startY
 
+        
+
         love.graphics.setColor(1, 1, 1)
         love.graphics.rectangle("line", rectX, rectY, rectW, rectH)
     end
@@ -427,7 +451,10 @@ function pixelservice:drawLine(x0, y0, x1, y1, r, g, b, a)
 end
 
 function pixelservice:setPixelFast(imgToUse, x, y, r, g, b, a, countPx)
+    
+
     local w, h = imgData:getDimensions()
+    if countPx == nil then countPx = true end
 
 
     if x >= 0 and y >= 0 and x < w and y < h then
@@ -436,7 +463,9 @@ function pixelservice:setPixelFast(imgToUse, x, y, r, g, b, a, countPx)
             if x >= pixelservice.selectedArea.startPos.x and y >= pixelservice.selectedArea.startPos.y and x <= pixelservice.selectedArea.endPos.x and y <= pixelservice.selectedArea.endPos.y then
 
             else
-                return
+                if countPx then
+                    return
+                end
             end
 
         end

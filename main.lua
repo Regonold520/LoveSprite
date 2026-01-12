@@ -15,7 +15,13 @@ function love.load()
 end
 
 
+deltaTimer = 0
 function love.update(dt)
+    if PixelService.selectedArea ~= nil then
+        print(PixelService.selectedArea.startPos.x)
+    end
+
+    deltaTimer = deltaTimer + dt
     PixelService:update(dt)
     Ui:update(dt)
     Gui:update(dt)

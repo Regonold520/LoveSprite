@@ -27,6 +27,8 @@ ui.toolButtons = {}
 ui.currentColourPicker = {x=0,y=0,layer=2,type="colourPicker"}
 ui.currentHuePicker = {x=0,y=0,layer=2,type="huePicker"}
 
+ui.canvasTranslating = true
+
 ui.screenBounds = {
     left = {
         x=400,
@@ -121,6 +123,10 @@ function ui:update(dt)
     if ui.objectHovering ~= nil then
         --print(ui.objectHovering.type)
     end
+
+    if ui.canvasTranslating then
+        ui:canvasTranslation()
+    end
 end
 
 function ui:draw()
@@ -129,6 +135,10 @@ function ui:draw()
     ui.currentIco = ui.cursorIco
     if ui.panning then ui.currentIco = ui.cursorPanIco end
     ui:checkMouseIco()
+
+    if ui.canvasTranslating then
+        ui:drawCanvasTranslation()
+    end
     
 
     love.graphics.setColor(0.211, 0.196, 0.235)
@@ -175,13 +185,115 @@ function ui:draw()
     ui:drawToolButtons()
     ui:draw9slices()
     ui:drawButtons()
-
     
     
 
     
     
 end
+
+function ui:drawCanvasTranslation()
+    love.graphics.setColor(0, 0, 1)
+    --top line
+    love.graphics.line(ui.screenBounds.left.x, love.graphics.getHeight() / 2 + ui.camY - (imgData:getHeight()/2)*scalar, ui.screenBounds.right.x, love.graphics.getHeight() / 2 + ui.camY - (imgData:getHeight()/2)*scalar)
+
+    --bottom line
+    love.graphics.line(ui.screenBounds.left.x, love.graphics.getHeight() / 2 + ui.camY + (imgData:getHeight()/2)*scalar, ui.screenBounds.right.x, love.graphics.getHeight() / 2 + ui.camY + (imgData:getHeight()/2)*scalar)
+
+    love.graphics.line(love.graphics.getWidth() / 2 + ui.camX - (imgData:getWidth()/2)*scalar, ui.screenBounds.left.y,love.graphics.getWidth() / 2 + ui.camX - (imgData:getWidth()/2)*scalar, ui.screenBounds.bottom.y)
+
+    love.graphics.line(love.graphics.getWidth() / 2 + ui.camX + (imgData:getWidth()/2)*scalar, ui.screenBounds.left.y,love.graphics.getWidth() / 2 + ui.camX + (imgData:getWidth()/2)*scalar, ui.screenBounds.bottom.y)
+
+
+
+    love.graphics.setColor(1, 1, 1)
+end
+
+ui.canvasTransX = 0
+ui.canvasTransY = 0
+ui.canvasTranslateMoving = false
+
+ui.lastMouseX = 0
+ui.lastMouseY = 0
+
+ui.canvasAccX = 0
+ui.canvasAccY = 0
+function ui:canvasTranslation()
+    local mX, mY = love.mouse.getPosition()
+
+    if mousejustpressed then
+        ui.lastMouseX = mX
+        ui.lastMouseY = mY
+        ui.canvasAccX = 0
+        ui.canvasAccY = 0
+        ui.canvasTranslateMoving = true
+    end
+
+    if mousejustreleased then
+        ui.canvasTranslateMoving = false
+    end
+
+    if not ui.canvasTranslateMoving then return end
+
+    local dx = mX - ui.lastMouseX
+    local dy = mY - ui.lastMouseY
+
+    local canvasW = imgData:getWidth() * scalar
+    local canvasH = imgData:getHeight() * scalar
+
+    local canvasLeft   = love.graphics.getWidth()  / 2 + ui.camX - canvasW / 2
+    local canvasRight  = canvasLeft + canvasW
+    local canvasTop    = love.graphics.getHeight() / 2 + ui.camY - canvasH / 2
+    local canvasBottom = canvasTop + canvasH
+
+
+    ui.lastMouseX = mX
+    ui.lastMouseY = mY
+
+    dx = dx / (scalar/2)
+    dy = dy / (scalar/2)
+
+    if mX > canvasRight then
+        ui.canvasAccX = ui.canvasAccX + dx
+    elseif mX < canvasLeft then
+        ui.canvasAccX = ui.canvasAccX - dx
+    end
+
+    if mY > canvasBottom then
+        ui.canvasAccY = ui.canvasAccY + dy
+    elseif mY < canvasTop then
+        ui.canvasAccY = ui.canvasAccY - dy
+    end
+
+    local growX = math.floor(ui.canvasAccX)
+    local growY = math.floor(ui.canvasAccY)
+
+    ui.canvasAccX = ui.canvasAccX - growX
+    ui.canvasAccY = ui.canvasAccY - growY
+
+
+    if growX ~= 0 then
+        local newW = imgData:getWidth() + growX
+        if newW > 0 then
+            imgData = love.image.newImageData(newW, imgData:getHeight())
+            cursorImgData = love.image.newImageData(newW, imgData:getHeight())
+            img = love.graphics.newImage(imgData)
+            cursorImg = love.graphics.newImage(imgData)
+        end
+    end
+
+    if growY ~= 0 then
+        local newH = imgData:getHeight() + growY
+        if newH > 0 then
+            imgData = love.image.newImageData(imgData:getWidth(), newH)
+            img = love.graphics.newImage(imgData)
+            cursorImgData = love.image.newImageData(imgData:getWidth(), newH)
+            cursorImg = love.graphics.newImage(imgData)
+        end
+    end
+
+end
+
 
 function ui:drawToolButtons()
     local count = 0
@@ -508,6 +620,30 @@ function ui:mousemoved( x, y, dx, dy, istouch )
     if ui.colourDragging and ui.hueDragging and not ui.dragXable and not ui.dragYable then
     return
 end
+
+    if PixelService.selectedArea ~= nil then
+        if PixelService.selectrionDraggable and not(selectTracking) then
+            local npX, npY = PixelService:posToPixel(img,love.graphics.getWidth() / 2, love.graphics.getHeight() / 2,x, y)
+
+            if PixelService.selectrionDragMouse.x ~= npX then
+                local diff = npX-PixelService.selectrionDragMouse.x
+                PixelService.selectrionDragMouse.x = npX
+
+                PixelService.selectedArea.startPos.x = PixelService.selectedArea.startPos.x+diff
+                PixelService.selectedArea.endPos.x = PixelService.selectedArea.endPos.x+diff
+            end
+
+            if PixelService.selectrionDragMouse.y ~= npY then
+                local diff = npY-PixelService.selectrionDragMouse.y
+                PixelService.selectrionDragMouse.y = npY
+
+                PixelService.selectedArea.startPos.y = PixelService.selectedArea.startPos.y+diff
+                PixelService.selectedArea.endPos.y = PixelService.selectedArea.endPos.y+diff
+            end
+
+        end
+    end
+
 
     if panning then
         ui.camX = ui.camX + dx
@@ -844,6 +980,14 @@ function ui:keypressed( key, scancode, isrepeat )
 
     if scancode == "g" then
             PixelService.currentTool = "paintbucket"
+    end
+
+    if scancode == "c" then
+        if ui.canvasTranslating then
+            ui.canvasTranslating = false
+        else
+            ui.canvasTranslating = true
+        end 
     end
 end
 
