@@ -3,6 +3,7 @@ scalar = 10
 Ui = require("ui")
 PixelService = require("pixelservice")
 Gui = require("gui")
+Tabs = require("tabs")
 
 function love.load()
     love.mouse.setVisible( false )
@@ -12,6 +13,21 @@ function love.load()
     PixelService:load()
     Ui:load()
     Gui:load()
+    Tabs:load()
+
+    newSpriteButton = registerButton("darkbutton.png", "dark", "New Sprite")
+
+    newSpriteButton.useFunc = function()
+        print("hi")
+        Ui:generateNewCanvas()
+        print("hi")
+    end
+
+    newSpriteButton.sizeX = 26
+
+    newSpriteButton.pos = {x=100,y=100}
+
+    newSpriteButton.bound = false
 end
 
 
@@ -25,6 +41,7 @@ function love.update(dt)
     PixelService:update(dt)
     Ui:update(dt)
     Gui:update(dt)
+    Tabs:update(dt)
 
     mousejustpressed = false
     mousejustreleased = false
@@ -37,9 +54,21 @@ function love.mousemoved( x, y, dx, dy, istouch )
 end
 
 function love.draw()
-    PixelService:draw()
+    love.graphics.setColor(0.145, 0.137, 0.156)
+    love.graphics.rectangle("fill", 0, 0, love.graphics.getWidth(), love.graphics.getHeight())
+    love.graphics.setColor(1,1,1)
+
+    if Tabs.currentTab.type == "pixel" then
+        love.graphics.setColor(0.078,0.070,0.090)
+        love.graphics.rectangle("fill", 0, 0, love.graphics.getWidth(), love.graphics.getHeight())
+    end
+    if Tabs.currentTab.type == "pixel" then
+        PixelService:draw()
+    end
+    
     Ui:draw()
     Gui:draw()
+    Tabs:draw()
 
     local x, y = love.mouse.getPosition()
     if PixelService.tooLight and not(Ui.overUI) and Ui.objectHovering == nil then love.graphics.setColor(0, 0, 0) end

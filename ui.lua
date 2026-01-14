@@ -27,7 +27,7 @@ ui.toolButtons = {}
 ui.currentColourPicker = {x=0,y=0,layer=2,type="colourPicker"}
 ui.currentHuePicker = {x=0,y=0,layer=2,type="huePicker"}
 
-ui.canvasTranslating = true
+ui.canvasTranslating = false
 
 ui.screenBounds = {
     left = {
@@ -124,17 +124,54 @@ function ui:update(dt)
         --print(ui.objectHovering.type)
     end
 
-    if ui.canvasTranslating then
+    if ui.canvasTranslating and not ui.overUI then
         ui:canvasTranslation()
     end
 end
 
 function ui:draw()
-    local x, y = love.mouse.getPosition()
-    
     ui.currentIco = ui.cursorIco
     if ui.panning then ui.currentIco = ui.cursorPanIco end
     ui:checkMouseIco()
+
+    
+
+    if Tabs.currentTab.type == "pixel" then
+
+        ui:pixelTab()
+    end
+
+    ui:draw9slices()
+    ui:drawButtons()
+
+    if Tabs.currentTab.type == "home" then
+
+        ui:homeTab()
+    end
+    
+
+    love.graphics.setColor(0.211, 0.196, 0.235)
+    love.graphics.rectangle("fill", 0, 0, love.graphics.getWidth(), 50)
+
+    love.graphics.setColor(0.247, 0.235, 0.258)
+
+    love.graphics.rectangle("fill", 0, 50, love.graphics.getWidth(), 3)
+
+    love.graphics.setColor(0, 0, 0)
+
+    love.graphics.rectangle("fill", 0, 48, love.graphics.getWidth()  , 2)
+
+    love.graphics.setColor(1, 1, 1)
+
+    
+    
+    
+end
+
+function ui:pixelTab()
+    local x, y = love.mouse.getPosition()
+    
+    
 
     if ui.canvasTranslating then
         ui:drawCanvasTranslation()
@@ -142,7 +179,6 @@ function ui:draw()
     
 
     love.graphics.setColor(0.211, 0.196, 0.235)
-    love.graphics.rectangle("fill", 0, 0, love.graphics.getWidth(), 50)
 
     love.graphics.setColor(0.145, 0.137, 0.156)
     love.graphics.rectangle("fill", 0, 50, love.graphics.getWidth(), 50)
@@ -159,11 +195,9 @@ function ui:draw()
     love.graphics.rectangle("fill", 0, clamp(ui.screenBounds.left.y, ui.screenBounds.bottom.y, 9999), love.graphics.getWidth() , love.graphics:getHeight() - ui.screenBounds.bottom.y)
     love.graphics.setColor(0.247, 0.235, 0.258)
 
-    love.graphics.rectangle("fill", 0, 50, love.graphics.getWidth(), 3)
 
     love.graphics.setColor(0, 0, 0)
 
-    love.graphics.rectangle("fill", 0, 48, love.graphics.getWidth()  , 2)
 
     
     love.graphics.rectangle("fill", clamp(0, ui.screenBounds.left.x, ui.screenBounds.right.x), ui.screenBounds.left.y, ui.screenBounds.right.x - clamp(0, ui.screenBounds.left.x, ui.screenBounds.right.x), 2)
@@ -183,12 +217,22 @@ function ui:draw()
     ui:drawColour()
     ui:drawHue()
     ui:drawToolButtons()
-    ui:draw9slices()
-    ui:drawButtons()
     
+    
+end
+
+local welcomeText = love.graphics.newText(ui.font, " V.0.1\n Hello Peak LoveSprite :D thank you for\n using my program\n -Regonold")
+function ui:homeTab()
+    love.graphics.setColor(0.078,0.070,0.090)
+    love.graphics.rectangle("fill", love.graphics:getWidth() - 550, 80, 265*2, 265*2)
+
+    love.graphics.setColor(0,0,0)
+    love.graphics.rectangle("line", love.graphics:getWidth() - 551, 80, (265*2)+1, (265*2)+1)
+    love.graphics.setColor(1, 1, 1)
+
+    love.graphics.draw(welcomeText ,love.graphics:getWidth() - 551, 80, 0, 0.7,0.7)
     
 
-    
     
 end
 
@@ -684,8 +728,9 @@ function ui:checkObjectCulling()
                     if love.mouse.isDown(1) then
                         i.sprite = ui.buttonClickSprite
                         if mousejustpressed then
+                            print("erio")
                             if i.useFunc ~= nil then
-                                i:useFunc()
+                                i.useFunc()
                             end
                         end 
                     end
@@ -781,11 +826,17 @@ end
 function ui:checkMouseIco()
     x,y = love.mouse.getPosition()
 
+    if Tabs.currentTab.type == "home" then
+        ui.currentIco = ui.cursorMouseIco
+    end
+
     if ui.objectHovering ~= nil then
         ui.currentIco = ui.cursorMouseIco
     else
-        if PixelService.currentTool == "brush" or PixelService.currentTool == "paintbucket" then
-            ui.currentIco = ui.cursorIco
+        if PixelService.currentTool == "brush" or PixelService.currentTool == "paintbucket"  then
+            if Tabs.currentTab.type == "pixel" then
+                ui.currentIco = ui.cursorIco
+            end
         elseif PixelService.currentTool == "eyedropper" then
             ui.currentIco = ui.cursorEyedropIco
 
@@ -832,8 +883,11 @@ function ui:checkMouseIco()
             ui.currentIco = ui.cursorEyedropIco
     end
 
-    ui.overUI = not(x > ui.screenBounds.left.x and x < ui.screenBounds.right.x) or not(y > ui.screenBounds.left.y and y < ui.screenBounds.left.y + ui.screenBounds.left.scale.y)
-
+    if Tabs.currentTab.type == "pixel" then
+        ui.overUI = not(x > ui.screenBounds.left.x and x < ui.screenBounds.right.x) or not(y > ui.screenBounds.left.y and y < ui.screenBounds.left.y + ui.screenBounds.left.scale.y)
+    else
+        ui.overUI = true
+    end
 end
 
 function love.resize(w, h)
@@ -892,24 +946,27 @@ mousejustpressed = false
 function ui:mousepressed(x, y, button, istouch)
     if button == 1 then
         mousejustpressed=true
-        local px = 10
-        local py = (love.graphics:getHeight() - 50) - colorPickerImg:getHeight() * 2
-        local pw = colorPickerImg:getWidth() * 2
-        local ph = colorPickerImg:getHeight() * 2
+        if colorPickerImg ~= nil then
+            
+            local px = 10
+            local py = (love.graphics:getHeight() - 50) - colorPickerImg:getHeight() * 2
+            local pw = colorPickerImg:getWidth() * 2
+            local ph = colorPickerImg:getHeight() * 2
 
-        if x >= px and x <= px + pw and y >= py and y <= py + ph then
-            ui.colourDragging = true
-            return
-        end
+            if x >= px and x <= px + pw and y >= py and y <= py + ph then
+                ui.colourDragging = true
+                return
+            end
 
-        px = 10
-        py = (love.graphics:getHeight() - 10) - huePickerImg:getHeight() * 2
-        pw = huePickerImg:getWidth() * 2
-        ph = huePickerImg:getHeight() * 2
+            px = 10
+            py = (love.graphics:getHeight() - 10) - huePickerImg:getHeight() * 2
+            pw = huePickerImg:getWidth() * 2
+            ph = huePickerImg:getHeight() * 2
 
-        if x >= px and x <= px + pw and y >= py and y <= py + ph then
-            ui.hueDragging = true
-            return
+            if x >= px and x <= px + pw and y >= py and y <= py + ph then
+                ui.hueDragging = true
+                return
+            end
         end
 
     end
@@ -960,38 +1017,40 @@ function ui:keypressed( key, scancode, isrepeat )
    end
 
    if PixelService.currentTool ~= "noise" then
-    if scancode == "lalt" then
+    if scancode == "lalt" and Tabs.currentTab.type == "pixel" then
             alt = true
             PixelService.bankedTool = PixelService.currentTool
             PixelService.currentTool = "eyedropper"
     end
 
-    if scancode == "b" then
+    if scancode == "b" and Tabs.currentTab.type == "pixel" then
             PixelService.currentTool = "brush"
     end
 
-    if scancode == "e" then
+    if scancode == "e" and Tabs.currentTab.type == "pixel" then
             PixelService.currentTool = "eraser"
     end
 
-    if scancode == "i" then
+    if scancode == "i" and Tabs.currentTab.type == "pixel" then
             PixelService.currentTool = "eyedropper"
     end
 
-    if scancode == "g" then
+    if scancode == "g" and Tabs.currentTab.type == "pixel" then
             PixelService.currentTool = "paintbucket"
     end
 
-    if scancode == "c" then
+    if scancode == "c" and Tabs.currentTab.type == "pixel" then
         if ui.canvasTranslating then
             ui.canvasTranslating = false
+            PixelService.selectedArea = nil
+            PixelService.selectTracking = false
         else
             ui.canvasTranslating = true
         end 
     end
 end
 
-    if control and scancode == "z" then
+    if control and scancode == "z" and Tabs.currentTab.type == "pixel" then
         local targetEntry = table.remove(PixelService.localBigPx)
         if targetEntry ~= nil then
             for _,i in pairs(targetEntry) do
@@ -1001,11 +1060,11 @@ end
     end
 
 
-    if control and scancode == "n" then
+    if control and scancode == "n" and Tabs.currentTab.type == "pixel" then
         ui:generateNewCanvas()
     end
 
-    if control and scancode == "s" then
+    if control and scancode == "s" and Tabs.currentTab.type == "pixel" then
         ui:saveFile()
     end
 end
@@ -1051,6 +1110,16 @@ function ui:generateNewCanvas()
         cursorImgData = love.image.newImageData(newX, newY)
 
         cursorImg = love.graphics.newImage(cursorImgData)
+
+        Tabs.currentTab.type = "pixel"
+
+        for _,i in pairs(Ui.buttons) do
+            if i == newSpriteButton or i == newSpriteButton then
+                Ui.buttons[_] = nil
+                break
+            end
+
+        end
 
         removeFloatingGui(gui)
 

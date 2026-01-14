@@ -356,6 +356,7 @@ function pixelservice:generateNoise(dimX, dimY)
 end
 
 function pixelservice:draw()
+    
     local imgW, imgH = imgData:getDimensions()
 
     local rectsX = math.ceil(imgW / 16)
@@ -365,6 +366,8 @@ function pixelservice:draw()
     love.graphics.setColor(0, 0, 0) 
     love.graphics.rectangle("fill", ((love.graphics.getWidth() / 2) - 2) - ((imgW / 2) * scalar) + Ui.camX,((love.graphics.getHeight() / 2) - 2) - ((imgH / 2) * scalar) + Ui.camY, imgW * scalar + 5 ,imgH * scalar + 5)
     
+    
+
     local flip = true
     for i = 0,rectsX -1 do
 
